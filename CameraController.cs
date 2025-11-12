@@ -37,6 +37,8 @@ public class CameraController : MonoBehaviour
     public bool orbitFollowsTarget = true;
     [Tooltip("Smoothly transition into orbit mode")]
     [Range(0.1f, 5f)] public float orbitTransitionSpeed = 1f;
+    [Tooltip("How often to recalculate structure center (seconds)")]
+    [Range(0.1f, 5f)] public float structureCenterUpdateInterval = 0.5f;
     
     [Header("UI")]
     public bool createUI = true;
@@ -50,9 +52,13 @@ public class CameraController : MonoBehaviour
     private float verticalAngle = 30f;
     private Vector3 targetOffset;
     
-    // Structure center for orbit mode
-    private Vector3 structureCenter = Vector3.zero;
-    private bool structureCenterCalculated = false;
+    // Structure center for orbit mode - CACHED
+    private Vector3 cachedStructureCenter = Vector3.zero;
+    private float lastStructureCenterUpdate = 0f;
+    
+    // Orbit presets
+    public enum OrbitPreset { Free, TopView, SideView, FrontView, IsometricView }
+    private OrbitPreset currentOrbitPreset = OrbitPreset.Free;
     
     // Smoothing variables for AAA feel
     private Vector3 velocity = Vector3.zero;
@@ -77,6 +83,10 @@ public class CameraController : MonoBehaviour
     private Button lookAtButton;
     private Button smoothFollowButton;
     private Button autoOrbitButton;
+    private Button topViewButton;
+    private Button sideViewButton;
+    private Button frontViewButton;
+    private Button isoViewButton;
     private Text lookAtButtonText;
     private Text smoothFollowButtonText;
     private Text autoOrbitButtonText;
@@ -163,6 +173,12 @@ public class CameraController : MonoBehaviour
         smoothFollowButton = GameObject.Find("SmoothFollowButton")?.GetComponent<Button>();
         autoOrbitButton = GameObject.Find("AutoOrbitButton")?.GetComponent<Button>();
         
+        // Look for orbit preset buttons
+        topViewButton = GameObject.Find("TopViewButton")?.GetComponent<Button>();
+        sideViewButton = GameObject.Find("SideViewButton")?.GetComponent<Button>();
+        frontViewButton = GameObject.Find("FrontViewButton")?.GetComponent<Button>();
+        isoViewButton = GameObject.Find("IsoViewButton")?.GetComponent<Button>();
+        
         if (lookAtButton != null)
         {
             lookAtButtonText = lookAtButton.GetComponentInChildren<Text>();
@@ -180,6 +196,16 @@ public class CameraController : MonoBehaviour
             autoOrbitButtonText = autoOrbitButton.GetComponentInChildren<Text>();
             autoOrbitButton.onClick.AddListener(() => ToggleAutoOrbit());
         }
+        
+        // Connect orbit preset buttons
+        if (topViewButton != null)
+            topViewButton.onClick.AddListener(() => SetOrbitPreset(OrbitPreset.TopView));
+        if (sideViewButton != null)
+            sideViewButton.onClick.AddListener(() => SetOrbitPreset(OrbitPreset.SideView));
+        if (frontViewButton != null)
+            frontViewButton.onClick.AddListener(() => SetOrbitPreset(OrbitPreset.FrontView));
+        if (isoViewButton != null)
+            isoViewButton.onClick.AddListener(() => SetOrbitPreset(OrbitPreset.IsometricView));
         
         // Set initial button colors
         UpdateButtonColors();
@@ -244,8 +270,10 @@ public class CameraController : MonoBehaviour
             orbitAngle = horizontalAngle;
             orbitTransitionProgress = 0f;
             
-            // Calculate structure center for orbiting
-            targetOffset = CalculateStructureCenter();
+            // Calculate and cache structure center for orbiting
+            cachedStructureCenter = CalculateStructureCenter();
+            lastStructureCenterUpdate = Time.time;
+            targetOffset = cachedStructureCenter;
             
             Debug.Log("Auto Orbit: ENABLED - Orbiting complete structure center");
         }
@@ -255,6 +283,7 @@ public class CameraController : MonoBehaviour
             horizontalAngle = orbitAngle;
             verticalAngle = Mathf.Lerp(verticalAngle, storedVerticalAngle, 0.5f);
             orbitTransitionProgress = 0f;
+            currentOrbitPreset = OrbitPreset.Free;
             
             Debug.Log("Auto Orbit: DISABLED");
         }
@@ -262,10 +291,70 @@ public class CameraController : MonoBehaviour
         UpdateButtonColors();
     }
     
+    void SetOrbitPreset(OrbitPreset preset)
+    {
+        // Enable orbit mode if not already enabled
+        if (!isOrbiting)
+        {
+            ToggleAutoOrbit();
+        }
+        
+        currentOrbitPreset = preset;
+        
+        // Set elevation and distance based on preset
+        switch (preset)
+        {
+            case OrbitPreset.TopView:
+                orbitElevation = 89f;  // Looking straight down
+                orbitDistance = 25f;
+                orbitSpeed = 5f;
+                Debug.Log("Orbit Preset: TOP VIEW");
+                break;
+                
+            case OrbitPreset.SideView:
+                orbitElevation = 0f;   // Level with structure
+                orbitDistance = 20f;
+                orbitSpeed = 8f;
+                Debug.Log("Orbit Preset: SIDE VIEW");
+                break;
+                
+            case OrbitPreset.FrontView:
+                orbitElevation = 10f;  // Slight angle
+                orbitDistance = 15f;
+                orbitSpeed = 0f;  // Static front view
+                orbitAngle = 0f;
+                Debug.Log("Orbit Preset: FRONT VIEW");
+                break;
+                
+            case OrbitPreset.IsometricView:
+                orbitElevation = 35.264f;  // Classic isometric angle
+                orbitDistance = 30f;
+                orbitSpeed = 3f;
+                Debug.Log("Orbit Preset: ISOMETRIC VIEW");
+                break;
+                
+            case OrbitPreset.Free:
+                // Keep current settings
+                Debug.Log("Orbit Preset: FREE");
+                break;
+        }
+        
+        // Reset transition for smooth movement to new preset
+        orbitTransitionProgress = 0f;
+        storedVerticalAngle = verticalAngle;
+        storedDistance = currentDistance;
+    }
+    
     void UpdateAutoOrbitMode()
     {
-        // Calculate the center of the entire structure (all drawn lines)
-        Vector3 orbitCenter = CalculateStructureCenter();
+        // Update structure center periodically instead of every frame for better performance
+        if (Time.time - lastStructureCenterUpdate > structureCenterUpdateInterval)
+        {
+            cachedStructureCenter = CalculateStructureCenter();
+            lastStructureCenterUpdate = Time.time;
+        }
+        
+        Vector3 orbitCenter = cachedStructureCenter;
         
         // Smooth transition into orbit mode
         orbitTransitionProgress = Mathf.Min(orbitTransitionProgress + Time.deltaTime * orbitTransitionSpeed, 1f);

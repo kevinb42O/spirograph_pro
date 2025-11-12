@@ -543,7 +543,24 @@ public class SpirographUIManager : MonoBehaviour
         autoOrbitButton = CreateModernButton(cameraSection.transform, "AutoOrbitButton", new Vector2(0, cameraYPos), new Vector2(290, 38), "🎬 AUTO ORBIT");
         Image orbitImg = autoOrbitButton.GetComponent<Image>();
         orbitImg.color = new Color(0.15f, 0.05f, 0.25f, 0.8f);
-        cameraYPos -= 55;
+        cameraYPos -= 50;
+        
+        // Orbit Preset Buttons
+        CreateModernLabel(cameraSection.transform, "OrbitPresetsLabel", new Vector2(0, cameraYPos), new Vector2(290, 20), "Orbit Presets:");
+        cameraYPos -= 25;
+        
+        Button topViewButton = CreateModernButton(cameraSection.transform, "TopViewButton", new Vector2(0, cameraYPos), new Vector2(68, 32), "⬇ Top");
+        Button sideViewButton = CreateModernButton(cameraSection.transform, "SideViewButton", new Vector2(74, cameraYPos), new Vector2(68, 32), "↔ Side");
+        Button frontViewButton = CreateModernButton(cameraSection.transform, "FrontViewButton", new Vector2(148, cameraYPos), new Vector2(68, 32), "→ Front");
+        Button isoViewButton = CreateModernButton(cameraSection.transform, "IsoViewButton", new Vector2(222, cameraYPos), new Vector2(68, 32), "◇ Iso");
+        
+        // Style preset buttons with slightly different color
+        Color presetColor = new Color(0.1f, 0.15f, 0.25f, 0.7f);
+        topViewButton.GetComponent<Image>().color = presetColor;
+        sideViewButton.GetComponent<Image>().color = presetColor;
+        frontViewButton.GetComponent<Image>().color = presetColor;
+        isoViewButton.GetComponent<Image>().color = presetColor;
+        cameraYPos -= 45;
         
         // Set camera section height
         RectTransform cameraRect = cameraSection.GetComponent<RectTransform>();
