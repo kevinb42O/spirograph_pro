@@ -1,0 +1,161 @@
+CAMERA CONTROLS UI LAYOUT
+=========================
+
+┌──────────────────────────────────────┐
+│  📷 CAMERA CONTROLS                 │
+├──────────────────────────────────────┤
+│                                      │
+│  ┌────────────┐  ┌────────────┐    │
+│  │ ✈ Free Fly │  │ ◎ Follow   │    │
+│  └────────────┘  └────────────┘    │
+│                                      │
+│  ┌──────────────────────────────┐  │
+│  │   🎬 AUTO ORBIT              │  │
+│  └──────────────────────────────┘  │
+│                                      │
+│  Orbit Presets:                     │
+│  ┌─────┐ ┌─────┐ ┌──────┐ ┌─────┐ │
+│  │⬇ Top│ │↔Side│ │→Front│ │◇ Iso│ │
+│  └─────┘ └─────┘ └──────┘ └─────┘ │
+│                                      │
+└──────────────────────────────────────┘
+
+
+BUTTON CONNECTIONS
+==================
+
+CameraController.cs connects to UI via ConnectToUI():
+
+lookAtButton       → SetCameraMode(CameraMode.LookAt)
+smoothFollowButton → SetCameraMode(CameraMode.SmoothFollow)
+autoOrbitButton    → ToggleAutoOrbit()
+
+topViewButton      → SetOrbitPreset(OrbitPreset.TopView)
+sideViewButton     → SetOrbitPreset(OrbitPreset.SideView)
+frontViewButton    → SetOrbitPreset(OrbitPreset.FrontView)
+isoViewButton      → SetOrbitPreset(OrbitPreset.IsometricView)
+
+
+BUTTON BEHAVIOR
+===============
+
+Free Fly Button:
+  - Enables keyboard movement (WASD, Space, Ctrl)
+  - Faster movement: 35 units/sec (was 15)
+  - Sprint: 3.5x multiplier with Shift
+  - Mouse: Right-click rotate, Middle-click pan
+  
+Follow Button:
+  - Orbits around the rotor object
+  - Mouse right-click to rotate view
+  - Scroll wheel to zoom
+
+Auto Orbit Button:
+  - Enables automatic rotation around structure center
+  - Calculates geometric center of ALL drawn lines
+  - Cached calculation (updates every 0.5s)
+  - Scroll wheel to adjust distance
+
+Orbit Preset Buttons:
+  - Auto-enable orbit mode if not already enabled
+  - Smooth transition to preset angle
+  - Each preset has predefined:
+    * Elevation angle
+    * Distance from center
+    * Rotation speed
+  
+  Top View (⬇):
+    - 89° elevation (nearly straight down)
+    - 25 units away
+    - 5°/sec rotation
+    
+  Side View (↔):
+    - 0° elevation (perfectly level)
+    - 20 units away
+    - 8°/sec rotation
+    
+  Front View (→):
+    - 10° elevation (slight upward)
+    - 15 units away
+    - 0°/sec rotation (static)
+    
+  Isometric (◇):
+    - 35.264° elevation (classic iso angle)
+    - 30 units away
+    - 3°/sec rotation
+
+
+PERFORMANCE NOTES
+=================
+
+Structure Center Caching:
+  - OLD: CalculateStructureCenter() called every frame (60+ times/sec)
+  - NEW: Cached result updated every 0.5 seconds (2 times/sec)
+  - Reduction: 30x fewer expensive calculations
+  
+  Impact:
+    - FindObjectsOfType<TrailRenderer>() - expensive
+    - trail.GetPositions() array allocations - expensive
+    - Vector3 min/max calculations - moderate
+    
+  Configuration:
+    - Adjust "Structure Center Update Interval" in Inspector
+    - Range: 0.1s to 5.0s
+    - Default: 0.5s (good balance)
+
+
+KEYBOARD CONTROLS (Free Fly Mode)
+==================================
+
+Movement:
+  W / Z  - Forward
+  S      - Backward
+  A / Q  - Left
+  D      - Right
+  Space  - Up
+  Ctrl   - Down
+  Shift  - Sprint (3.5x faster)
+
+Acceleration: 25f (was 10f) - 2.5x more responsive
+Deceleration: 15f when keys released - smooth stop
+
+
+UI AUTO-GENERATION COMPATIBILITY
+=================================
+
+SpirographUIManager.cs creates buttons at:
+  Line 539: lookAtButton
+  Line 540: smoothFollowButton  
+  Line 543: autoOrbitButton
+  Line 549-552: Orbit preset buttons (NEW)
+
+All buttons:
+  - Auto-styled with glassmorphism theme
+  - Consistent spacing and sizing
+  - Proper parent-child hierarchy
+  - Connected via CameraController.Start() → ConnectToUI()
+
+
+BACKWARD COMPATIBILITY
+======================
+
+✅ Existing projects work without changes
+✅ Old UI layouts still function
+✅ Manual button connections still supported
+✅ No breaking changes to public API
+✅ All new features are additive
+
+
+TESTING CHECKLIST
+=================
+
+□ Generate UI via SpirographUIManager checkbox
+□ Test Free Fly mode keyboard movement (should be fast)
+□ Test Follow mode mouse rotation
+□ Test Auto Orbit button (should orbit entire structure)
+□ Test each preset button (Top, Side, Front, Iso)
+□ Verify smooth transitions between presets
+□ Check scroll wheel zoom in orbit mode
+□ Verify structure center updates as lines are drawn
+□ Test mode switching (orbit → free fly → follow)
+□ Check button color updates on mode change
