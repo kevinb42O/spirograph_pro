@@ -72,6 +72,14 @@ public class SpirographUIManager : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Call this method from code or Unity events to generate UI at runtime
+    /// </summary>
+    public void GenerateUIAtRuntime()
+    {
+        GenerateCompleteUI();
+    }
+    
     void Start()
     {
         // Find the control panel if it exists
@@ -952,12 +960,18 @@ public class SpirographUIManager : MonoBehaviour
         instructTextRect.offsetMax = new Vector2(-8, -8);
         
         Text instructText = instructTextObj.AddComponent<Text>();
-        instructText.text = "💡 Click section headers (▼/▶) to expand/collapse\n\n⌨ WASD/ZQSD: Move • Shift: Sprint\n🖱 Right Click: Look • Scroll: Zoom\n\n🎨 Click color swatches for instant colors\n🌌 Choose skybox from Environment section";
+        instructText.text = "💡 QUICK START GUIDE\n━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                           "▼/▶ Click headers to expand/collapse\n" +
+                           "⌨ WASD/ZQSD: Move • Shift: Sprint\n" +
+                           "🖱 Right Click: Look • Scroll: Zoom\n" +
+                           "🎨 Click color swatches for instant colors\n" +
+                           "⏎ Press ENTER to hide/show this panel\n" +
+                           "F1: Keyboard shortcuts • F2: Stats";
         instructText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         instructText.fontSize = 10;
         instructText.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
         instructText.alignment = TextAnchor.UpperLeft;
-        instructText.lineSpacing = 1.15f;
+        instructText.lineSpacing = 1.2f;
         
         // Set final content height based on all UI elements
         yPos -= 125; // Account for instructions height
@@ -985,6 +999,141 @@ public class SpirographUIManager : MonoBehaviour
         hintGlow.effectColor = new Color(0.3f, 0.5f, 1f, 0.3f);
         hintGlow.effectDistance = new Vector2(0, 0);
         
+        // Create Performance/Status Display (Bottom-Right) - Optional, can be toggled
+        GameObject statusPanel = new GameObject("StatusPanel");
+        statusPanel.transform.SetParent(canvas.transform, false);
+        RectTransform statusRect = statusPanel.AddComponent<RectTransform>();
+        statusRect.anchorMin = new Vector2(1, 0);
+        statusRect.anchorMax = new Vector2(1, 0);
+        statusRect.pivot = new Vector2(1, 0);
+        statusRect.anchoredPosition = new Vector2(-15, 15);
+        statusRect.sizeDelta = new Vector2(200, 120);
+        
+        Image statusBg = statusPanel.AddComponent<Image>();
+        statusBg.color = new Color(0.02f, 0.02f, 0.08f, 0.75f);
+        
+        Outline statusOutline = statusPanel.AddComponent<Outline>();
+        statusOutline.effectColor = new Color(0.3f, 0.5f, 0.9f, 0.25f);
+        statusOutline.effectDistance = new Vector2(1, -1);
+        
+        // Status text container
+        GameObject statusTextObj = new GameObject("StatusText");
+        statusTextObj.transform.SetParent(statusPanel.transform, false);
+        RectTransform statusTextRect = statusTextObj.AddComponent<RectTransform>();
+        statusTextRect.anchorMin = Vector2.zero;
+        statusTextRect.anchorMax = Vector2.one;
+        statusTextRect.offsetMin = new Vector2(10, 10);
+        statusTextRect.offsetMax = new Vector2(-10, -10);
+        
+        Text statusText = statusTextObj.AddComponent<Text>();
+        statusText.text = "⚡ SPIROGRAPH PRO\n━━━━━━━━━━━━━━━━\n📊 FPS: --\n⚙️ Speed: --\n🎨 Effect: --\n📷 Camera: --";
+        statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        statusText.fontSize = 10;
+        statusText.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
+        statusText.alignment = TextAnchor.UpperLeft;
+        statusText.lineSpacing = 1.2f;
+        
+        // Initially hide status panel (can be toggled with a hotkey later)
+        statusPanel.SetActive(false);
+        
+        // Add toggle button for status panel
+        Button toggleStatusButton = CreateModernButton(canvas.transform, "ToggleStatusButton", new Vector2(-15, 15), new Vector2(35, 35), "📊");
+        RectTransform toggleStatusRect = toggleStatusButton.GetComponent<RectTransform>();
+        toggleStatusRect.anchorMin = new Vector2(1, 0);
+        toggleStatusRect.anchorMax = new Vector2(1, 0);
+        toggleStatusRect.pivot = new Vector2(1, 0);
+        
+        Image toggleStatusImg = toggleStatusButton.GetComponent<Image>();
+        toggleStatusImg.color = new Color(0.05f, 0.05f, 0.15f, 0.7f);
+        
+        toggleStatusButton.onClick.AddListener(() => {
+            statusPanel.SetActive(!statusPanel.activeSelf);
+        });
+        
+        // Add keyboard shortcuts panel (initially hidden, toggle with F1)
+        GameObject shortcutsPanel = new GameObject("ShortcutsPanel");
+        shortcutsPanel.transform.SetParent(canvas.transform, false);
+        RectTransform shortcutsRect = shortcutsPanel.AddComponent<RectTransform>();
+        shortcutsRect.anchorMin = new Vector2(0.5f, 0.5f);
+        shortcutsRect.anchorMax = new Vector2(0.5f, 0.5f);
+        shortcutsRect.pivot = new Vector2(0.5f, 0.5f);
+        shortcutsRect.anchoredPosition = Vector2.zero;
+        shortcutsRect.sizeDelta = new Vector2(500, 400);
+        
+        Image shortcutsBg = shortcutsPanel.AddComponent<Image>();
+        shortcutsBg.color = new Color(0.02f, 0.02f, 0.08f, 0.95f);
+        
+        Outline shortcutsOutline = shortcutsPanel.AddComponent<Outline>();
+        shortcutsOutline.effectColor = new Color(0.4f, 0.6f, 1f, 0.5f);
+        shortcutsOutline.effectDistance = new Vector2(2, -2);
+        
+        // Shortcuts title
+        GameObject shortcutsTitleObj = new GameObject("Title");
+        shortcutsTitleObj.transform.SetParent(shortcutsPanel.transform, false);
+        RectTransform shortcutsTitleRect = shortcutsTitleObj.AddComponent<RectTransform>();
+        shortcutsTitleRect.anchorMin = new Vector2(0, 1);
+        shortcutsTitleRect.anchorMax = new Vector2(1, 1);
+        shortcutsTitleRect.pivot = new Vector2(0.5f, 1);
+        shortcutsTitleRect.anchoredPosition = new Vector2(0, -15);
+        shortcutsTitleRect.sizeDelta = new Vector2(-30, 40);
+        
+        Text shortcutsTitleText = shortcutsTitleObj.AddComponent<Text>();
+        shortcutsTitleText.text = "⌨ KEYBOARD SHORTCUTS";
+        shortcutsTitleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        shortcutsTitleText.fontSize = 20;
+        shortcutsTitleText.fontStyle = FontStyle.Bold;
+        shortcutsTitleText.color = new Color(0.7f, 0.85f, 1f, 0.95f);
+        shortcutsTitleText.alignment = TextAnchor.MiddleCenter;
+        
+        // Shortcuts content
+        GameObject shortcutsContentObj = new GameObject("Content");
+        shortcutsContentObj.transform.SetParent(shortcutsPanel.transform, false);
+        RectTransform shortcutsContentRect = shortcutsContentObj.AddComponent<RectTransform>();
+        shortcutsContentRect.anchorMin = new Vector2(0, 0);
+        shortcutsContentRect.anchorMax = new Vector2(1, 1);
+        shortcutsContentRect.offsetMin = new Vector2(20, 50);
+        shortcutsContentRect.offsetMax = new Vector2(-20, -60);
+        
+        Text shortcutsText = shortcutsContentObj.AddComponent<Text>();
+        shortcutsText.text = "🎮 CAMERA CONTROLS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                            "WASD / ZQSD ........... Move Camera\n" +
+                            "Shift ........................... Sprint Mode\n" +
+                            "Right Click + Drag ... Rotate View\n" +
+                            "Scroll Wheel ............. Zoom In/Out\n\n" +
+                            "🎨 UI CONTROLS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                            "Enter ......................... Toggle UI Panel\n" +
+                            "F1 .............................. Show/Hide This Help\n" +
+                            "F2 .............................. Toggle Performance Stats\n" +
+                            "Esc ............................. Close Dialogs\n\n" +
+                            "✨ QUICK TIPS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                            "• Click section headers to collapse/expand\n" +
+                            "• Color swatches give instant color changes\n" +
+                            "• All sliders update in real-time\n" +
+                            "• Right panel scrolls for more controls";
+        shortcutsText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        shortcutsText.fontSize = 12;
+        shortcutsText.color = new Color(0.65f, 0.8f, 0.95f, 0.9f);
+        shortcutsText.alignment = TextAnchor.UpperLeft;
+        shortcutsText.lineSpacing = 1.3f;
+        
+        // Close button for shortcuts panel
+        Button closeShortcutsButton = CreateModernButton(shortcutsPanel.transform, "CloseButton", new Vector2(0, -10), new Vector2(100, 35), "✕ CLOSE");
+        RectTransform closeShortcutsRect = closeShortcutsButton.GetComponent<RectTransform>();
+        closeShortcutsRect.anchorMin = new Vector2(0.5f, 0);
+        closeShortcutsRect.anchorMax = new Vector2(0.5f, 0);
+        closeShortcutsRect.pivot = new Vector2(0.5f, 0);
+        
+        closeShortcutsButton.onClick.AddListener(() => {
+            shortcutsPanel.SetActive(false);
+        });
+        
+        // Initially hide shortcuts panel
+        shortcutsPanel.SetActive(false);
+        
+        // Store references for runtime access
+        this.gameObject.AddComponent<PerformanceMonitor>().Initialize(statusText);
+        this.gameObject.AddComponent<ShortcutsManager>().Initialize(shortcutsPanel, statusPanel);
+        
         #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(this);
         UnityEditor.Selection.activeGameObject = canvasObj;
@@ -992,8 +1141,9 @@ public class SpirographUIManager : MonoBehaviour
         
         Debug.Log("✓ Generated complete UI! Canvas selected in Hierarchy.");
         Debug.Log("✓ HIDE UI BUTTON: Top-right corner (always visible) - Press ENTER to toggle!");
+        Debug.Log("✓ PERFORMANCE STATS: Bottom-right toggle button or F2 key");
+        Debug.Log("✓ KEYBOARD SHORTCUTS: Press F1 to view all controls");
         Debug.Log("✓ You can now customize colors, sizes, and positions.");
-        Debug.Log("✓ Don't forget to assign 4 materials to SpirographRoller for the material buttons!");
         Debug.Log("✓ UI automatically connects to SpirographRoller, RotateParent, and CameraController.");
     }
     
@@ -1486,7 +1636,7 @@ public class SpirographUIManager : MonoBehaviour
         Button button = buttonObj.AddComponent<Button>();
         button.targetGraphic = buttonImage;
         
-        // Setup hover colors
+        // Setup hover colors with enhanced feedback
         ColorBlock colors = button.colors;
         colors.normalColor = new Color(1f, 1f, 1f, 1f);
         colors.highlightedColor = new Color(0.85f, 0.95f, 1f, 1f); // Bright on hover
@@ -1496,6 +1646,10 @@ public class SpirographUIManager : MonoBehaviour
         colors.colorMultiplier = 1.2f;
         colors.fadeDuration = 0.15f;
         button.colors = colors;
+        
+        // Add enhanced button animator for visual feedback
+        ButtonAnimator animator = buttonObj.AddComponent<ButtonAnimator>();
+        animator.button = button;
         
         // Text
         GameObject textObj = new GameObject("Text");
@@ -1518,5 +1672,175 @@ public class SpirographUIManager : MonoBehaviour
         textShadow.effectDistance = new Vector2(1, -1);
         
         return button;
+    }
+}
+
+/// <summary>
+/// Monitors and displays performance metrics in real-time
+/// </summary>
+public class PerformanceMonitor : MonoBehaviour
+{
+    private Text statusText;
+    private float deltaTime = 0.0f;
+    private float updateInterval = 0.5f; // Update twice per second
+    private float timeSinceLastUpdate = 0f;
+    
+    public void Initialize(Text text)
+    {
+        statusText = text;
+    }
+    
+    void Update()
+    {
+        if (statusText == null) return;
+        
+        deltaTime += (Time.unscaledDeltaTime - deltaTime) * 0.1f;
+        timeSinceLastUpdate += Time.unscaledDeltaTime;
+        
+        if (timeSinceLastUpdate >= updateInterval)
+        {
+            timeSinceLastUpdate = 0f;
+            UpdateStats();
+        }
+    }
+    
+    void UpdateStats()
+    {
+        float fps = 1.0f / deltaTime;
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        CameraController camera = FindObjectOfType<CameraController>();
+        
+        string fpsColor = fps >= 60 ? "✅" : fps >= 30 ? "⚠️" : "❌";
+        string speedValue = roller != null ? roller.speed.ToString("F1") : "--";
+        string effectValue = roller != null ? roller.GetCurrentEffectName() : "--";
+        string cameraMode = camera != null && camera.IsAutoOrbitEnabled() ? "Auto Orbit" : "Manual";
+        
+        statusText.text = $"⚡ SPIROGRAPH PRO\n━━━━━━━━━━━━━━━━\n{fpsColor} FPS: {fps:F0}\n⚙️ Speed: {speedValue}\n🎨 Effect: {effectValue}\n📷 Camera: {cameraMode}";
+    }
+}
+
+/// <summary>
+/// Manages keyboard shortcuts for UI panels
+/// </summary>
+public class ShortcutsManager : MonoBehaviour
+{
+    private GameObject shortcutsPanel;
+    private GameObject statusPanel;
+    
+    public void Initialize(GameObject shortcuts, GameObject status)
+    {
+        shortcutsPanel = shortcuts;
+        statusPanel = status;
+    }
+    
+    void Update()
+    {
+        // F1 - Toggle keyboard shortcuts help
+        if (Input.GetKeyDown(KeyCode.F1))
+        {
+            if (shortcutsPanel != null)
+            {
+                shortcutsPanel.SetActive(!shortcutsPanel.activeSelf);
+                Debug.Log(shortcutsPanel.activeSelf ? "📖 Shortcuts panel shown" : "📖 Shortcuts panel hidden");
+            }
+        }
+        
+        // F2 - Toggle performance stats
+        if (Input.GetKeyDown(KeyCode.F2))
+        {
+            if (statusPanel != null)
+            {
+                statusPanel.SetActive(!statusPanel.activeSelf);
+                Debug.Log(statusPanel.activeSelf ? "📊 Performance stats shown" : "📊 Performance stats hidden");
+            }
+        }
+        
+        // Escape - Close all panels
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (shortcutsPanel != null && shortcutsPanel.activeSelf)
+            {
+                shortcutsPanel.SetActive(false);
+                Debug.Log("📖 Shortcuts panel closed");
+            }
+        }
+    }
+}
+
+/// <summary>
+/// Adds smooth scale animation to buttons on hover and click
+/// Makes the UI feel more responsive and professional
+/// </summary>
+public class ButtonAnimator : MonoBehaviour
+{
+    public Button button;
+    private RectTransform rectTransform;
+    private Vector3 originalScale;
+    private Vector3 targetScale;
+    private bool isHovering = false;
+    private bool isPressed = false;
+    
+    void Start()
+    {
+        rectTransform = GetComponent<RectTransform>();
+        originalScale = rectTransform.localScale;
+        targetScale = originalScale;
+    }
+    
+    void Update()
+    {
+        if (button == null || rectTransform == null) return;
+        
+        // Check if mouse is over button (simple raycast check)
+        bool wasHovering = isHovering;
+        isHovering = UnityEngine.EventSystems.EventSystem.current != null && 
+                    UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject() &&
+                    button.IsInteractable();
+        
+        // Determine target scale based on state
+        if (isPressed)
+        {
+            targetScale = originalScale * 0.95f; // Pressed: slightly smaller
+        }
+        else if (isHovering)
+        {
+            targetScale = originalScale * 1.05f; // Hover: slightly larger
+        }
+        else
+        {
+            targetScale = originalScale; // Normal
+        }
+        
+        // Smooth interpolation to target scale
+        rectTransform.localScale = Vector3.Lerp(rectTransform.localScale, targetScale, Time.unscaledDeltaTime * 12f);
+    }
+    
+    void OnEnable()
+    {
+        if (button != null)
+        {
+            button.onClick.AddListener(OnButtonPressed);
+        }
+    }
+    
+    void OnDisable()
+    {
+        if (button != null)
+        {
+            button.onClick.RemoveListener(OnButtonPressed);
+        }
+    }
+    
+    void OnButtonPressed()
+    {
+        // Quick pulse animation on click
+        StartCoroutine(PulseAnimation());
+    }
+    
+    System.Collections.IEnumerator PulseAnimation()
+    {
+        isPressed = true;
+        yield return new WaitForSecondsRealtime(0.1f);
+        isPressed = false;
     }
 }
