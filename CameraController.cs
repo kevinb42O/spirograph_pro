@@ -11,7 +11,7 @@ public class CameraController : MonoBehaviour
     
     [Header("Camera Settings")]
     [Range(0.1f, 10f)] public float mouseSensitivity = 3f;
-    [Range(1f, 50f)] public float movementSpeed = 15f;
+    [Range(1f, 100f)] public float movementSpeed = 35f;
     [Range(0.5f, 20f)] public float zoomSpeed = 5f;
     [Range(0.5f, 100f)] public float minDistance = 2f;
     [Range(5f, 200f)] public float maxDistance = 50f;
@@ -20,7 +20,7 @@ public class CameraController : MonoBehaviour
     [Header("Advanced Settings")]
     [Range(0f, 1f)] public float movementDamping = 0.85f;
     [Range(0f, 1f)] public float rotationDamping = 0.9f;
-    [Range(1f, 3f)] public float sprintMultiplier = 2.5f;
+    [Range(1f, 5f)] public float sprintMultiplier = 3.5f;
     [Range(0f, 5f)] public float lookAhead = 1.5f;
     [Range(40f, 120f)] public float fieldOfView = 60f;
     [Range(0.1f, 2f)] public float zoomDamping = 0.3f;
@@ -49,6 +49,10 @@ public class CameraController : MonoBehaviour
     private float horizontalAngle = 0f;
     private float verticalAngle = 30f;
     private Vector3 targetOffset;
+    
+    // Structure center for orbit mode
+    private Vector3 structureCenter = Vector3.zero;
+    private bool structureCenterCalculated = false;
     
     // Smoothing variables for AAA feel
     private Vector3 velocity = Vector3.zero;
@@ -240,7 +244,10 @@ public class CameraController : MonoBehaviour
             orbitAngle = horizontalAngle;
             orbitTransitionProgress = 0f;
             
-            Debug.Log("Auto Orbit: ENABLED");
+            // Calculate structure center for orbiting
+            targetOffset = CalculateStructureCenter();
+            
+            Debug.Log("Auto Orbit: ENABLED - Orbiting complete structure center");
         }
         else
         {
@@ -251,14 +258,14 @@ public class CameraController : MonoBehaviour
             
             Debug.Log("Auto Orbit: DISABLED");
         }
+        
+        UpdateButtonColors();
     }
     
     void UpdateAutoOrbitMode()
     {
-        // Determine which target to orbit around
-        Transform activeOrbitTarget = orbitTarget != null ? orbitTarget : target;
-        
-        if (activeOrbitTarget == null) return;
+        // Calculate the center of the entire structure (all drawn lines)
+        Vector3 orbitCenter = CalculateStructureCenter();
         
         // Smooth transition into orbit mode
         orbitTransitionProgress = Mathf.Min(orbitTransitionProgress + Time.deltaTime * orbitTransitionSpeed, 1f);
@@ -286,14 +293,8 @@ public class CameraController : MonoBehaviour
         float currentVertical = Mathf.Lerp(storedVerticalAngle, orbitElevation, orbitTransitionProgress);
         float currentDist = Mathf.Lerp(storedDistance, orbitDistance, orbitTransitionProgress);
         
-        // Calculate orbit center position
-        Vector3 orbitCenter = orbitFollowsTarget && activeOrbitTarget != null ? activeOrbitTarget.position : targetOffset;
-        
-        // Smooth follow if following target
-        if (orbitFollowsTarget)
-        {
-            targetOffset = Vector3.Lerp(targetOffset, orbitCenter, smoothFollowSpeed * Time.deltaTime);
-        }
+        // Smooth follow the structure center
+        targetOffset = Vector3.Lerp(targetOffset, orbitCenter, smoothFollowSpeed * Time.deltaTime);
         
         // Calculate camera position using spherical coordinates
         float radH = currentHorizontal * Mathf.Deg2Rad;
@@ -322,6 +323,48 @@ public class CameraController : MonoBehaviour
         
         // Dynamic FOV
         UpdateFieldOfView(false);
+    }
+    
+    Vector3 CalculateStructureCenter()
+    {
+        // Find all TrailRenderer components in the scene (these are the drawn lines)
+        TrailRenderer[] trails = FindObjectsOfType<TrailRenderer>();
+        
+        if (trails.Length == 0)
+        {
+            // Fallback to target position if no trails found yet
+            return target != null ? target.position : Vector3.zero;
+        }
+        
+        // Calculate bounds of all trail positions
+        Vector3 min = Vector3.one * float.MaxValue;
+        Vector3 max = Vector3.one * float.MinValue;
+        int totalPoints = 0;
+        
+        foreach (TrailRenderer trail in trails)
+        {
+            if (trail == null || !trail.gameObject.activeInHierarchy) continue;
+            
+            // Get all positions from the trail
+            Vector3[] positions = new Vector3[trail.positionCount];
+            trail.GetPositions(positions);
+            
+            foreach (Vector3 pos in positions)
+            {
+                min = Vector3.Min(min, pos);
+                max = Vector3.Max(max, pos);
+                totalPoints++;
+            }
+        }
+        
+        // Return the center of the bounding box
+        if (totalPoints > 0)
+        {
+            return (min + max) * 0.5f;
+        }
+        
+        // Fallback to target position
+        return target != null ? target.position : Vector3.zero;
     }
     
     void UpdateFreeFlyMode()
@@ -518,19 +561,31 @@ public class CameraController : MonoBehaviour
             if (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed) // Down
                 moveDirection -= Vector3.up;
             
-            // Apply movement with sprint modifier
+            // Apply movement with sprint modifier for CINEMATIC FEEL
             if (moveDirection.sqrMagnitude > 0.01f)
             {
                 float speed = movementSpeed;
+                bool isSprinting = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
                 
-                // Sprint when holding Shift
-                if (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed)
+                // Sprint when holding Shift - much faster for cinematic movement
+                if (isSprinting)
                 {
                     speed *= sprintMultiplier;
                 }
                 
                 moveDirection.Normalize();
-                currentVelocity = Vector3.Lerp(currentVelocity, moveDirection * speed, 10f * Time.deltaTime);
+                
+                // IMPROVED: Faster acceleration for responsive cinematic movement
+                // Changed from 10f to 25f for much snappier response
+                currentVelocity = Vector3.Lerp(currentVelocity, moveDirection * speed, 25f * Time.deltaTime);
+                
+                // Update FOV for sprint effect
+                UpdateFieldOfView(isSprinting);
+            }
+            else
+            {
+                // Smooth deceleration when no keys are pressed
+                currentVelocity = Vector3.Lerp(currentVelocity, Vector3.zero, 15f * Time.deltaTime);
             }
         }
         
@@ -641,6 +696,13 @@ public class CameraController : MonoBehaviour
     
     void SetCameraMode(CameraMode mode)
     {
+        // Exit orbit mode if switching camera modes
+        if (isOrbiting)
+        {
+            isOrbiting = false;
+            orbitTransitionProgress = 0f;
+        }
+        
         // Preserve current camera orientation when switching modes
         Vector3 currentEuler = transform.rotation.eulerAngles;
         
@@ -651,6 +713,7 @@ public class CameraController : MonoBehaviour
         
         // Reset rotation velocity to avoid sudden movements
         rotationVelocity = Vector2.zero;
+        currentVelocity = Vector3.zero;
         
         // If switching to follow mode, set distance based on current position
         if (mode == CameraMode.SmoothFollow && target != null)
@@ -663,6 +726,8 @@ public class CameraController : MonoBehaviour
         
         currentMode = mode;
         UpdateButtonColors();
+        
+        Debug.Log($"Camera Mode switched to: {mode}");
     }
     
     void UpdateButtonColors()
