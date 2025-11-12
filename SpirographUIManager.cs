@@ -456,6 +456,230 @@ public class SpirographUIManager : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Apply a preset configuration to the spirograph
+    /// </summary>
+    void ApplyPreset(int presetIndex)
+    {
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        if (roller == null)
+        {
+            Debug.LogWarning("Cannot apply preset: SpirographRoller not found");
+            return;
+        }
+        
+        // Define preset configurations
+        switch (presetIndex)
+        {
+            case 0: // Classic
+                roller.speed = 50f;
+                roller.cycles = 50;
+                roller.rotationSpeed = 0.5f;
+                roller.penDistance = 0.3f;
+                roller.lineWidth = 0.3f;
+                roller.ChangeLineColor(Color.cyan);
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Normal;
+                Debug.Log("⭐ Applied Classic preset");
+                break;
+                
+            case 1: // Rosette
+                roller.speed = 80f;
+                roller.cycles = 120;
+                roller.rotationSpeed = 0.7f;
+                roller.penDistance = 0.5f;
+                roller.lineWidth = 0.4f;
+                roller.ChangeLineColor(new Color(1f, 0.4f, 0.7f)); // Pink
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Glow;
+                Debug.Log("⭐ Applied Rosette preset");
+                break;
+                
+            case 2: // Flower
+                roller.speed = 60f;
+                roller.cycles = 80;
+                roller.rotationSpeed = 0.8f;
+                roller.penDistance = 0.7f;
+                roller.lineWidth = 0.5f;
+                roller.ChangeLineColor(new Color(1f, 0.8f, 0f)); // Gold
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Rainbow;
+                Debug.Log("⭐ Applied Flower preset");
+                break;
+                
+            case 3: // Star
+                roller.speed = 100f;
+                roller.cycles = 200;
+                roller.rotationSpeed = 0.3f;
+                roller.penDistance = 0.2f;
+                roller.lineWidth = 0.2f;
+                roller.ChangeLineColor(Color.white);
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Neon;
+                Debug.Log("⭐ Applied Star preset");
+                break;
+                
+            case 4: // Spiral
+                roller.speed = 40f;
+                roller.cycles = 300;
+                roller.rotationSpeed = 0.9f;
+                roller.penDistance = 1.2f;
+                roller.lineWidth = 0.25f;
+                roller.ChangeLineColor(new Color(0.5f, 0f, 1f)); // Purple
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Pulse;
+                Debug.Log("⭐ Applied Spiral preset");
+                break;
+                
+            case 5: // Chaos
+                roller.speed = 150f;
+                roller.cycles = 400;
+                roller.rotationSpeed = 0.15f;
+                roller.penDistance = 0.8f;
+                roller.lineWidth = 0.15f;
+                roller.ChangeLineColor(Color.red);
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Hologram;
+                Debug.Log("⭐ Applied Chaos preset");
+                break;
+        }
+        
+        // Update UI sliders to reflect new values
+        UpdateSlidersFromRoller(roller);
+    }
+    
+    void UpdateSlidersFromRoller(SpirographRoller roller)
+    {
+        if (speedSlider != null)
+        {
+            speedSlider.value = roller.speed;
+            UpdateSliderLabel(speedSlider, roller.speed.ToString("F1"));
+        }
+        
+        if (cyclesSlider != null)
+        {
+            cyclesSlider.value = roller.cycles;
+            UpdateSliderLabel(cyclesSlider, roller.cycles.ToString());
+        }
+        
+        if (rotationSpeedSlider != null)
+        {
+            rotationSpeedSlider.value = roller.rotationSpeed;
+            UpdateSliderLabel(rotationSpeedSlider, roller.rotationSpeed.ToString("F2"));
+        }
+        
+        if (penDistanceSlider != null)
+        {
+            penDistanceSlider.value = roller.penDistance;
+            UpdateSliderLabel(penDistanceSlider, roller.penDistance.ToString("F2") + "x");
+        }
+        
+        if (lineWidthSlider != null)
+        {
+            lineWidthSlider.value = roller.lineWidth;
+            UpdateSliderLabel(lineWidthSlider, roller.lineWidth.ToString("F2"));
+        }
+        
+        // Update color sliders and preview
+        float h, s, v;
+        Color.RGBToHSV(roller.currentLineColor, out h, out s, out v);
+        
+        if (hueSlider != null)
+        {
+            hueSlider.value = h;
+            UpdateSliderLabel(hueSlider, h.ToString("F2"));
+        }
+        
+        if (saturationSlider != null)
+        {
+            saturationSlider.value = s;
+            UpdateSliderLabel(saturationSlider, s.ToString("F2"));
+        }
+        
+        if (valueSlider != null)
+        {
+            valueSlider.value = v;
+            UpdateSliderLabel(valueSlider, v.ToString("F2"));
+        }
+        
+        if (colorPreview != null)
+        {
+            Image preview = colorPreview.GetComponent<Image>();
+            if (preview != null) preview.color = roller.currentLineColor;
+        }
+        
+        // Update line effects button text
+        if (lineEffectsButton != null)
+        {
+            Text buttonText = lineEffectsButton.GetComponentInChildren<Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = "✨ LINE FX: " + roller.GetCurrentEffectName();
+            }
+        }
+    }
+    
+    void SaveCurrentConfiguration()
+    {
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        if (roller == null)
+        {
+            Debug.LogWarning("Cannot save: SpirographRoller not found");
+            return;
+        }
+        
+        // Save to PlayerPrefs (simple persistence)
+        PlayerPrefs.SetFloat("Spirograph_Speed", roller.speed);
+        PlayerPrefs.SetInt("Spirograph_Cycles", roller.cycles);
+        PlayerPrefs.SetFloat("Spirograph_RotationSpeed", roller.rotationSpeed);
+        PlayerPrefs.SetFloat("Spirograph_PenDistance", roller.penDistance);
+        PlayerPrefs.SetFloat("Spirograph_LineWidth", roller.lineWidth);
+        PlayerPrefs.SetFloat("Spirograph_LineBrightness", roller.lineBrightness);
+        
+        // Save color as HSV
+        float h, s, v;
+        Color.RGBToHSV(roller.currentLineColor, out h, out s, out v);
+        PlayerPrefs.SetFloat("Spirograph_ColorH", h);
+        PlayerPrefs.SetFloat("Spirograph_ColorS", s);
+        PlayerPrefs.SetFloat("Spirograph_ColorV", v);
+        
+        PlayerPrefs.SetInt("Spirograph_LineEffect", (int)roller.lineEffectMode);
+        PlayerPrefs.Save();
+        
+        Debug.Log("💾 Configuration saved successfully!");
+    }
+    
+    void LoadSavedConfiguration()
+    {
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        if (roller == null)
+        {
+            Debug.LogWarning("Cannot load: SpirographRoller not found");
+            return;
+        }
+        
+        if (!PlayerPrefs.HasKey("Spirograph_Speed"))
+        {
+            Debug.LogWarning("📂 No saved configuration found");
+            return;
+        }
+        
+        // Load from PlayerPrefs
+        roller.speed = PlayerPrefs.GetFloat("Spirograph_Speed", 50f);
+        roller.cycles = PlayerPrefs.GetInt("Spirograph_Cycles", 50);
+        roller.rotationSpeed = PlayerPrefs.GetFloat("Spirograph_RotationSpeed", 0.5f);
+        roller.penDistance = PlayerPrefs.GetFloat("Spirograph_PenDistance", 0.3f);
+        roller.lineWidth = PlayerPrefs.GetFloat("Spirograph_LineWidth", 0.3f);
+        roller.lineBrightness = PlayerPrefs.GetFloat("Spirograph_LineBrightness", 1f);
+        
+        // Load color
+        float h = PlayerPrefs.GetFloat("Spirograph_ColorH", 0.5f);
+        float s = PlayerPrefs.GetFloat("Spirograph_ColorS", 0.8f);
+        float v = PlayerPrefs.GetFloat("Spirograph_ColorV", 1f);
+        roller.ChangeLineColor(Color.HSVToRGB(h, s, v));
+        
+        roller.lineEffectMode = (SpirographRoller.LineEffectMode)PlayerPrefs.GetInt("Spirograph_LineEffect", 0);
+        
+        // Update UI
+        UpdateSlidersFromRoller(roller);
+        
+        Debug.Log("📂 Configuration loaded successfully!");
+    }
+    
     void Update()
     {
         // Toggle UI visibility with Enter key
@@ -902,12 +1126,73 @@ public class SpirographUIManager : MonoBehaviour
         cameraRect.sizeDelta = new Vector2(290, Mathf.Abs(cameraYPos) + 10);
         yPos += cameraYPos - 20;
         
+        // ============================================================
+        // PRESETS SECTION - Save/Load Favorite Configurations
+        // ============================================================
+        Button presetsSectionToggle = CreateSectionHeader(uiParent, "PresetsHeader", new Vector2(15, yPos), "⭐ PATTERN PRESETS", false);
+        yPos -= 45;
+        
+        GameObject presetsSection = CreateSection(uiParent, "PresetsSection", new Vector2(15, yPos));
+        presetsSection.SetActive(false); // Collapsed by default
+        float presetsYPos = -10;
+        
+        // Preset buttons (3 columns, 2 rows = 6 presets)
+        string[] presetNames = new string[] {
+            "Classic", "Rosette", "Flower", "Star", "Spiral", "Chaos"
+        };
+        
+        for (int i = 0; i < 6; i++)
+        {
+            int row = i / 3;
+            int col = i % 3;
+            float xPos = col * 95f;
+            float yPosPreset = presetsYPos - (row * 50f);
+            
+            Button presetBtn = CreateModernButton(presetsSection.transform, $"Preset{i}Button", 
+                new Vector2(xPos, yPosPreset), new Vector2(90, 42), presetNames[i]);
+            
+            // Store index for closure
+            int presetIndex = i;
+            presetBtn.onClick.AddListener(() => {
+                ApplyPreset(presetIndex);
+            });
+        }
+        presetsYPos -= 110;
+        
+        // Save/Load buttons
+        Button savePresetButton = CreateModernButton(presetsSection.transform, "SavePresetButton", 
+            new Vector2(0, presetsYPos), new Vector2(140, 38), "💾 SAVE");
+        Button loadPresetButton = CreateModernButton(presetsSection.transform, "LoadPresetButton", 
+            new Vector2(150, presetsYPos), new Vector2(140, 38), "📂 LOAD");
+        
+        Image saveBtnImg = savePresetButton.GetComponent<Image>();
+        saveBtnImg.color = new Color(0.1f, 0.25f, 0.15f, 0.8f); // Green tint
+        
+        Image loadBtnImg = loadPresetButton.GetComponent<Image>();
+        loadBtnImg.color = new Color(0.15f, 0.15f, 0.25f, 0.8f); // Blue tint
+        
+        savePresetButton.onClick.AddListener(() => {
+            SaveCurrentConfiguration();
+        });
+        
+        loadPresetButton.onClick.AddListener(() => {
+            LoadSavedConfiguration();
+        });
+        
+        presetsYPos -= 55;
+        
+        // Set presets section height
+        RectTransform presetsRect = presetsSection.GetComponent<RectTransform>();
+        presetsRect.sizeDelta = new Vector2(290, Mathf.Abs(presetsYPos) + 10);
+        yPos += presetsYPos - 20;
+        
         // Setup section toggle functionality
         SetupSectionToggle(motionSectionToggle, motionSection);
         SetupSectionToggle(visualsSectionToggle, visualsSection);
         SetupSectionToggle(colorSectionToggle, colorSection);
         SetupSectionToggle(environmentSectionToggle, environmentSection);
         SetupSectionToggle(cameraSectionToggle, cameraSection);
+        SetupSectionToggle(presetsSectionToggle, presetsSection);
         
         // Setup HSV sliders to update preview
         if (hueSlider != null && saturationSlider != null && valueSlider != null && colorPreview != null)
