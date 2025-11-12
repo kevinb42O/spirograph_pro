@@ -40,9 +40,19 @@ public class GeometricPatternGenerator : MonoBehaviour
     [SerializeField] private string parentName = "GeometricShape";
     [SerializeField] private bool keepPreviousGenerations = true; // NEW: Keep old patterns
 
+    [Header("Performance Optimization")]
+    [Tooltip("Use object pooling for point GameObjects (recommended for frequent regeneration)")]
+    [SerializeField] private bool useObjectPooling = false;
+    [Tooltip("Batch point creation (faster for large patterns)")]
+    [SerializeField] private bool batchCreation = true;
+
     private List<GameObject> generatedObjects = new List<GameObject>();
     private Transform parentTransform;
     private static int generationCounter = 0; // Track how many patterns created
+    
+    // Object pool for performance
+    private Queue<GameObject> objectPool = new Queue<GameObject>();
+    private const int POOL_INITIAL_SIZE = 1000;
 
     public enum ShapeType
     {
@@ -185,7 +195,7 @@ public class GeometricPatternGenerator : MonoBehaviour
         {
             if (obj != null)
             {
-                DestroyImmediate(obj);
+                ReturnToPool(obj);
             }
         }
         generatedObjects.Clear();
@@ -1042,10 +1052,50 @@ public class GeometricPatternGenerator : MonoBehaviour
 
     private void CreatePoint(Vector3 localPosition, int index)
     {
-        GameObject point = new GameObject($"Point_{index}");
+        GameObject point;
+        
+        if (useObjectPooling && objectPool.Count > 0)
+        {
+            // Reuse from pool
+            point = objectPool.Dequeue();
+            point.name = $"Point_{index}";
+            point.SetActive(true);
+        }
+        else
+        {
+            // Create new
+            point = new GameObject($"Point_{index}");
+        }
+        
         point.transform.SetParent(parentTransform);
         point.transform.localPosition = localPosition;
         generatedObjects.Add(point);
+    }
+    
+    private void InitializeObjectPool()
+    {
+        // Pre-create pool objects for performance
+        if (!useObjectPooling) return;
+        
+        for (int i = 0; i < POOL_INITIAL_SIZE; i++)
+        {
+            GameObject obj = new GameObject("PooledPoint");
+            obj.SetActive(false);
+            objectPool.Enqueue(obj);
+        }
+    }
+    
+    private void ReturnToPool(GameObject obj)
+    {
+        if (!useObjectPooling)
+        {
+            DestroyImmediate(obj);
+            return;
+        }
+        
+        obj.SetActive(false);
+        obj.transform.SetParent(null);
+        objectPool.Enqueue(obj);
     }
 
     private void OnDrawGizmos()

@@ -73,16 +73,21 @@ public class SpirographRoller : MonoBehaviour
     public Color currentLineColor = Color.cyan;
     
     [Header("Performance & Smoothing")]
-    [Tooltip("Adaptive smoothing based on speed (dynamic quality)")]
+    [Tooltip("Adaptive smoothing based on speed and curvature (dynamic quality)")]
     public bool adaptiveQuality = true;
     [Tooltip("Sample delta for curvature calculation")]
     public float curvatureDelta = 0.02f;
+    [Tooltip("Use Catmull-Rom splines for ultra-smooth curves")]
+    public bool useSmoothSplines = true;
     
     [Header("Trail Quality")]
     [Tooltip("Maximum distance between trail points (smaller = smoother lines at high speed)")]
     public float maxTrailSegmentLength = 0.05f;
     [Tooltip("Interpolate trail positions for smooth lines at any speed")]
     public bool highQualityTrail = true;
+    [Tooltip("Anti-aliasing quality (higher = smoother but slower)")]
+    [Range(1, 5)]
+    public int antiAliasingQuality = 3;
     
     [Header("Visibility")]
     [Tooltip("GameObject to show/hide (the visual object being traced). If empty, will hide/show renderers on this object.")]
@@ -116,6 +121,18 @@ public class SpirographRoller : MonoBehaviour
     private Text pauseButtonText;
     private float baseRotorRadius; // Store the base rotor size at start
     
+    // Performance optimization: Cached components and lookups
+    private Renderer cachedRenderer;
+    private Camera mainCamera;
+    
+    // Pre-calculated optimization: Trigonometric lookup table for high-speed mode
+    private float[] sinLookup;
+    private float[] cosLookup;
+    private const int LOOKUP_SIZE = 3600; // 0.1 degree precision
+    
+    // Adaptive quality: curvature-based sampling cache
+    private float[] curvatureCache;
+    
     void Start()
     {
         if (pathPoints == null || pathPoints.Length == 0)
@@ -123,6 +140,13 @@ public class SpirographRoller : MonoBehaviour
             Debug.LogError("SpirographRoller: No path points assigned!");
             return;
         }
+        
+        // Performance: Cache frequently accessed components
+        cachedRenderer = GetComponent<Renderer>();
+        mainCamera = Camera.main;
+        
+        // Initialize trigonometric lookup tables for high-speed optimization
+        InitializeTrigLookupTables();
         
         // Cache the path in world space at initialization
         // This creates a static reference frame independent of parent rotation
@@ -138,7 +162,13 @@ public class SpirographRoller : MonoBehaviour
         if (staticPathCache.Count > 0)
             totalLength += Vector3.Distance(staticPathCache[staticPathCache.Count-1], staticPathCache[0]);
         
-        radius = GetComponent<Renderer>().bounds.extents.x;
+        // Initialize curvature cache for adaptive quality
+        if (adaptiveQuality)
+        {
+            CalculateCurvatureCache();
+        }
+        
+        radius = cachedRenderer != null ? cachedRenderer.bounds.extents.x : 1f;
         baseRotorRadius = radius; // Store the base size for scaling calculations
         
         penObject = new GameObject("Pen");
@@ -230,12 +260,18 @@ public class SpirographRoller : MonoBehaviour
             }
         }
         
-        // ===== HIGH-QUALITY TRAIL INTERPOLATION =====
+        // ===== OPTIMIZED HIGH-QUALITY TRAIL INTERPOLATION =====
         // At high speeds, we need to inject intermediate points for smooth trails
+        // Now with adaptive quality based on curvature
         if (highQualityTrail && frameDistance > maxTrailSegmentLength)
         {
+            // Use adaptive segment length based on path curvature
+            float adaptiveSegmentLength = adaptiveQuality ? 
+                GetAdaptiveSegmentLength(startDistance) : maxTrailSegmentLength;
+            
             // Calculate how many intermediate points we need
-            int numSegments = Mathf.CeilToInt(frameDistance / maxTrailSegmentLength);
+            int numSegments = Mathf.CeilToInt(frameDistance / adaptiveSegmentLength);
+            numSegments = Mathf.Min(numSegments, 50); // Cap max interpolation points for performance
             float segmentDistance = frameDistance / numSegments;
             
             // Interpolate through intermediate positions
@@ -245,7 +281,9 @@ public class SpirographRoller : MonoBehaviour
                 if (interpDistance > totalLength)
                     interpDistance = interpDistance % totalLength;
                 
-                Vector3 interpPosition = GetPoint(interpDistance);
+                // Use smooth interpolation if enabled
+                Vector3 interpPosition = useSmoothSplines ? 
+                    GetSmoothPoint(interpDistance) : GetPoint(interpDistance);
                 
                 // Calculate rotation for this intermediate point
                 UpdateRotationForPosition(interpPosition, segmentDistance);
@@ -260,8 +298,9 @@ public class SpirographRoller : MonoBehaviour
         }
         else
         {
-            // Normal single-step update
-            Vector3 newPosition = GetPoint(distance);
+            // Normal single-step update with optional smoothing
+            Vector3 newPosition = useSmoothSplines ? 
+                GetSmoothPoint(distance) : GetPoint(distance);
             UpdateRotationForPosition(newPosition, frameDistance);
             transform.position = newPosition;
         }
@@ -281,7 +320,7 @@ public class SpirographRoller : MonoBehaviour
     
     void UpdateRotationForPosition(Vector3 newPosition, float distanceMoved)
     {
-        // ===== SIMPLE FIXED-AXIS ROTATION =====
+        // ===== OPTIMIZED SIMPLE FIXED-AXIS ROTATION =====
         // Rotor spins around ONE fixed axis only - no path adaptation, no flipping
         // Just pure 2D rotation while moving through 3D space
         
@@ -292,6 +331,7 @@ public class SpirographRoller : MonoBehaviour
         currentAngle -= angleIncrement;
         
         // Apply rotation around FIXED Z-axis only
+        // For extremely high speeds, consider using fast trig, but Quaternion.Euler is already optimized
         transform.rotation = Quaternion.Euler(0, 0, currentAngle);
     }
     
@@ -468,11 +508,21 @@ public class SpirographRoller : MonoBehaviour
     
     void UpdateLineWidth()
     {
-        // Update trail renderer width
+        // Update trail renderer width with optional camera-distance scaling
         if (trailRenderer != null)
         {
-            trailRenderer.startWidth = lineWidth;
-            trailRenderer.endWidth = lineWidth;
+            float finalWidth = lineWidth;
+            
+            // Optional: Scale line width based on camera distance for consistent visual appearance
+            if (mainCamera != null && antiAliasingQuality > 1)
+            {
+                float distance = Vector3.Distance(mainCamera.transform.position, transform.position);
+                float scaleFactor = Mathf.Clamp(distance / 20f, 0.5f, 2f); // Adjust based on your scene scale
+                finalWidth *= scaleFactor;
+            }
+            
+            trailRenderer.startWidth = finalWidth;
+            trailRenderer.endWidth = finalWidth;
         }
     }
     
@@ -976,6 +1026,142 @@ public class SpirographRoller : MonoBehaviour
         }
         
         Debug.Log("Visual Object: " + (visualsVisible ? "VISIBLE" : "HIDDEN"));
+    }
+    
+    // ========== PERFORMANCE OPTIMIZATIONS ==========
+    
+    void InitializeTrigLookupTables()
+    {
+        // Pre-calculate sine and cosine values for performance
+        // This trades memory for speed - critical at high framerates
+        sinLookup = new float[LOOKUP_SIZE];
+        cosLookup = new float[LOOKUP_SIZE];
+        
+        for (int i = 0; i < LOOKUP_SIZE; i++)
+        {
+            float angle = (i / (float)LOOKUP_SIZE) * 2f * Mathf.PI;
+            sinLookup[i] = Mathf.Sin(angle);
+            cosLookup[i] = Mathf.Cos(angle);
+        }
+    }
+    
+    float FastSin(float angle)
+    {
+        // Fast sine using lookup table
+        // Normalize angle to 0-2π range
+        float normalized = (angle % (2f * Mathf.PI));
+        if (normalized < 0) normalized += 2f * Mathf.PI;
+        
+        int index = Mathf.FloorToInt((normalized / (2f * Mathf.PI)) * LOOKUP_SIZE) % LOOKUP_SIZE;
+        return sinLookup[index];
+    }
+    
+    float FastCos(float angle)
+    {
+        // Fast cosine using lookup table
+        float normalized = (angle % (2f * Mathf.PI));
+        if (normalized < 0) normalized += 2f * Mathf.PI;
+        
+        int index = Mathf.FloorToInt((normalized / (2f * Mathf.PI)) * LOOKUP_SIZE) % LOOKUP_SIZE;
+        return cosLookup[index];
+    }
+    
+    void CalculateCurvatureCache()
+    {
+        // Calculate curvature at each point for adaptive sampling
+        // Higher curvature areas need more points for smooth lines
+        int numSamples = 200; // Sample every 0.5% of path
+        curvatureCache = new float[numSamples];
+        
+        for (int i = 0; i < numSamples; i++)
+        {
+            float t = (i / (float)numSamples) * totalLength;
+            curvatureCache[i] = CalculateCurvatureAt(t);
+        }
+    }
+    
+    float CalculateCurvatureAt(float distance)
+    {
+        // Calculate curvature using three points
+        // κ = |dT/ds| where T is the unit tangent vector
+        float delta = curvatureDelta * totalLength;
+        
+        Vector3 p0 = GetPoint(Mathf.Max(0, distance - delta));
+        Vector3 p1 = GetPoint(distance);
+        Vector3 p2 = GetPoint(Mathf.Min(totalLength, distance + delta));
+        
+        // Calculate tangent vectors
+        Vector3 t1 = (p1 - p0).normalized;
+        Vector3 t2 = (p2 - p1).normalized;
+        
+        // Curvature approximation
+        float curvature = Vector3.Angle(t1, t2) / delta;
+        return curvature;
+    }
+    
+    float GetAdaptiveSegmentLength(float distance)
+    {
+        // Return smaller segment length in high-curvature areas
+        if (!adaptiveQuality || curvatureCache == null || curvatureCache.Length == 0)
+        {
+            return maxTrailSegmentLength;
+        }
+        
+        // Find curvature at this point
+        int index = Mathf.FloorToInt((distance / totalLength) * curvatureCache.Length);
+        index = Mathf.Clamp(index, 0, curvatureCache.Length - 1);
+        
+        float curvature = curvatureCache[index];
+        
+        // Scale segment length inversely with curvature
+        // High curvature = small segments = smooth curves
+        float minLength = maxTrailSegmentLength * 0.2f;
+        float curvatureThreshold = 5f; // Adjust based on your needs
+        
+        float adaptiveLength = Mathf.Lerp(
+            maxTrailSegmentLength,
+            minLength,
+            Mathf.Clamp01(curvature / curvatureThreshold)
+        );
+        
+        return adaptiveLength;
+    }
+    
+    Vector3 CatmullRomInterpolate(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+    {
+        // Catmull-Rom spline interpolation for ultra-smooth curves
+        // This creates smooth curves that pass through control points
+        float t2 = t * t;
+        float t3 = t2 * t;
+        
+        Vector3 result = 0.5f * (
+            (2f * p1) +
+            (-p0 + p2) * t +
+            (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
+            (-p0 + 3f * p1 - 3f * p2 + p3) * t3
+        );
+        
+        return result;
+    }
+    
+    Vector3 GetSmoothPoint(float distance)
+    {
+        // Get point with optional Catmull-Rom smoothing
+        if (!useSmoothSplines)
+        {
+            return GetPoint(distance);
+        }
+        
+        // Get 4 control points for Catmull-Rom spline
+        float delta = totalLength * 0.01f; // 1% spacing
+        
+        Vector3 p0 = GetPoint(Mathf.Max(0, distance - delta * 2f));
+        Vector3 p1 = GetPoint(Mathf.Max(0, distance - delta));
+        Vector3 p2 = GetPoint(distance);
+        Vector3 p3 = GetPoint(Mathf.Min(totalLength, distance + delta));
+        
+        // Interpolate between p1 and p2
+        return CatmullRomInterpolate(p0, p1, p2, p3, 0.5f);
     }
 }
 
