@@ -84,8 +84,16 @@ public class CameraController : MonoBehaviour
     // UI EventSystem management
     private EventSystem eventSystem;
     
+    // Performance: Cached components
+    private Camera cachedCamera;
+    private Transform cachedTransform;
+    
     void Start()
     {
+        // Cache components for performance
+        cachedCamera = GetComponent<Camera>();
+        cachedTransform = transform;
+        
         // Initialize Input System devices - CRITICAL for AAA input handling
         mouse = Mouse.current;
         keyboard = Keyboard.current;
@@ -127,10 +135,9 @@ public class CameraController : MonoBehaviour
         }
         
         // Initialize FOV
-        Camera cam = GetComponent<Camera>();
-        if (cam != null)
+        if (cachedCamera != null)
         {
-            currentFOV = cam.fieldOfView;
+            currentFOV = cachedCamera.fieldOfView;
             fieldOfView = currentFOV;
         }
         
@@ -626,10 +633,9 @@ public class CameraController : MonoBehaviour
         // Smooth FOV transition
         currentFOV = Mathf.Lerp(currentFOV, targetFOV, 5f * Time.deltaTime);
         
-        Camera cam = GetComponent<Camera>();
-        if (cam != null)
+        if (cachedCamera != null)
         {
-            cam.fieldOfView = currentFOV;
+            cachedCamera.fieldOfView = currentFOV;
         }
     }
     
