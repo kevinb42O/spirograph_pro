@@ -102,6 +102,350 @@ public class SpirographUIManager : MonoBehaviour
         {
             hideUIButton.onClick.AddListener(ToggleUI);
         }
+        
+        // Auto-connect all UI elements to their respective scripts
+        ConnectUIElements();
+    }
+    
+    /// <summary>
+    /// Automatically finds and connects all UI elements to SpirographRoller, CameraController, etc.
+    /// This makes the UI "just work" without manual setup in the Inspector.
+    /// </summary>
+    void ConnectUIElements()
+    {
+        // Find the main scripts
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        CameraController cameraController = FindObjectOfType<CameraController>();
+        RotateParent rotateParent = FindObjectOfType<RotateParent>();
+        SkyboxManager skyboxManager = FindObjectOfType<SkyboxManager>();
+        
+        // Find UI elements if not already assigned
+        FindUIElements();
+        
+        // Connect SpirographRoller controls
+        if (roller != null)
+        {
+            ConnectSpirographControls(roller);
+            ConnectColorControls(roller);
+            ConnectVisualControls(roller);
+        }
+        else
+        {
+            Debug.LogWarning("SpirographUIManager: SpirographRoller not found in scene. UI controls won't function.");
+        }
+        
+        // Connect Camera controls
+        if (cameraController != null)
+        {
+            ConnectCameraControls(cameraController);
+        }
+        else
+        {
+            Debug.LogWarning("SpirographUIManager: CameraController not found. Camera buttons won't function.");
+        }
+        
+        // Connect Rotation controls
+        if (rotateParent != null && objectRotationSpeedSlider != null)
+        {
+            objectRotationSpeedSlider.minValue = 0f;
+            objectRotationSpeedSlider.maxValue = 100f;
+            objectRotationSpeedSlider.value = rotateParent.rotationSpeed;
+            objectRotationSpeedSlider.onValueChanged.AddListener((value) => {
+                rotateParent.rotationSpeed = value;
+                UpdateSliderLabel(objectRotationSpeedSlider, value.ToString("F1"));
+            });
+        }
+        
+        // Connect Skybox dropdown
+        if (skyboxManager != null && skyboxDropdown != null)
+        {
+            // Already connected in CreateModernDropdown, but verify
+            int currentIndex = skyboxManager.GetCurrentSkyboxIndex();
+            if (currentIndex >= 0)
+            {
+                skyboxDropdown.value = currentIndex;
+            }
+        }
+        
+        Debug.Log("✓ UI Manager: All controls connected and ready!");
+    }
+    
+    void FindUIElements()
+    {
+        // Find sliders if not assigned
+        if (speedSlider == null)
+            speedSlider = GameObject.Find("SpeedSlider")?.GetComponent<Slider>();
+        if (cyclesSlider == null)
+            cyclesSlider = GameObject.Find("CyclesSlider")?.GetComponent<Slider>();
+        if (rotationSpeedSlider == null)
+            rotationSpeedSlider = GameObject.Find("RotationSpeedSlider")?.GetComponent<Slider>();
+        if (objectRotationSpeedSlider == null)
+            objectRotationSpeedSlider = GameObject.Find("ObjectRotationSpeedSlider")?.GetComponent<Slider>();
+        if (penDistanceSlider == null)
+            penDistanceSlider = GameObject.Find("PenDistanceSlider")?.GetComponent<Slider>();
+        if (lineWidthSlider == null)
+            lineWidthSlider = GameObject.Find("LineWidthSlider")?.GetComponent<Slider>();
+        if (lineBrightnessSlider == null)
+            lineBrightnessSlider = GameObject.Find("LineBrightnessSlider")?.GetComponent<Slider>();
+        if (hueSlider == null)
+            hueSlider = GameObject.Find("HueSlider")?.GetComponent<Slider>();
+        if (saturationSlider == null)
+            saturationSlider = GameObject.Find("SaturationSlider")?.GetComponent<Slider>();
+        if (valueSlider == null)
+            valueSlider = GameObject.Find("ValueSlider")?.GetComponent<Slider>();
+        
+        // Find buttons if not assigned
+        if (pauseButton == null)
+            pauseButton = GameObject.Find("PauseButton")?.GetComponent<Button>();
+        if (resetButton == null)
+            resetButton = GameObject.Find("ResetButton")?.GetComponent<Button>();
+        if (toggleVisualsButton == null)
+            toggleVisualsButton = GameObject.Find("ToggleVisualsButton")?.GetComponent<Button>();
+        if (lineEffectsButton == null)
+            lineEffectsButton = GameObject.Find("LineEffectsButton")?.GetComponent<Button>();
+        if (lookAtButton == null)
+            lookAtButton = GameObject.Find("LookAtButton")?.GetComponent<Button>();
+        if (smoothFollowButton == null)
+            smoothFollowButton = GameObject.Find("SmoothFollowButton")?.GetComponent<Button>();
+        if (autoOrbitButton == null)
+            autoOrbitButton = GameObject.Find("AutoOrbitButton")?.GetComponent<Button>();
+        
+        // Find color preview
+        if (colorPreview == null)
+            colorPreview = GameObject.Find("ColorPreview");
+        
+        // Find skybox dropdown
+        if (skyboxDropdown == null)
+            skyboxDropdown = GameObject.Find("SkyboxDropdown")?.GetComponent<Dropdown>();
+    }
+    
+    void ConnectSpirographControls(SpirographRoller roller)
+    {
+        // Speed Slider
+        if (speedSlider != null)
+        {
+            speedSlider.minValue = 0f;
+            speedSlider.maxValue = 250f;
+            speedSlider.value = roller.speed;
+            speedSlider.onValueChanged.AddListener((value) => {
+                roller.speed = value;
+                UpdateSliderLabel(speedSlider, value.ToString("F1"));
+            });
+            UpdateSliderLabel(speedSlider, roller.speed.ToString("F1"));
+        }
+        
+        // Cycles Slider
+        if (cyclesSlider != null)
+        {
+            cyclesSlider.minValue = 1f;
+            cyclesSlider.maxValue = 500f;
+            cyclesSlider.wholeNumbers = true;
+            cyclesSlider.value = roller.cycles;
+            cyclesSlider.onValueChanged.AddListener((value) => {
+                roller.cycles = (int)value;
+                UpdateSliderLabel(cyclesSlider, ((int)value).ToString());
+            });
+            UpdateSliderLabel(cyclesSlider, roller.cycles.ToString());
+        }
+        
+        // Rotation Speed Slider
+        if (rotationSpeedSlider != null)
+        {
+            rotationSpeedSlider.minValue = 0f;
+            rotationSpeedSlider.maxValue = 1f;
+            rotationSpeedSlider.value = roller.rotationSpeed;
+            rotationSpeedSlider.onValueChanged.AddListener((value) => {
+                roller.rotationSpeed = value;
+                UpdateSliderLabel(rotationSpeedSlider, value.ToString("F2"));
+            });
+            UpdateSliderLabel(rotationSpeedSlider, roller.rotationSpeed.ToString("F2"));
+        }
+        
+        // Pen Distance Slider
+        if (penDistanceSlider != null)
+        {
+            penDistanceSlider.minValue = 0f;
+            penDistanceSlider.maxValue = 5f;
+            penDistanceSlider.value = roller.penDistance;
+            penDistanceSlider.onValueChanged.AddListener((value) => {
+                roller.penDistance = value;
+                UpdateSliderLabel(penDistanceSlider, value.ToString("F2") + "x");
+            });
+            UpdateSliderLabel(penDistanceSlider, roller.penDistance.ToString("F2") + "x");
+        }
+        
+        // Line Width Slider
+        if (lineWidthSlider != null)
+        {
+            lineWidthSlider.minValue = 0.01f;
+            lineWidthSlider.maxValue = 2f;
+            lineWidthSlider.value = roller.lineWidth;
+            lineWidthSlider.onValueChanged.AddListener((value) => {
+                roller.lineWidth = value;
+                UpdateSliderLabel(lineWidthSlider, value.ToString("F2"));
+            });
+            UpdateSliderLabel(lineWidthSlider, roller.lineWidth.ToString("F2"));
+        }
+        
+        // Line Brightness Slider
+        if (lineBrightnessSlider != null)
+        {
+            lineBrightnessSlider.minValue = 0f;
+            lineBrightnessSlider.maxValue = 1f;
+            lineBrightnessSlider.value = roller.lineBrightness;
+            lineBrightnessSlider.onValueChanged.AddListener((value) => {
+                roller.lineBrightness = value;
+                UpdateSliderLabel(lineBrightnessSlider, value.ToString("F2"));
+            });
+            UpdateSliderLabel(lineBrightnessSlider, roller.lineBrightness.ToString("F2"));
+        }
+        
+        // Pause Button
+        if (pauseButton != null)
+        {
+            pauseButton.onClick.AddListener(() => {
+                roller.TogglePause();
+                Text buttonText = pauseButton.GetComponentInChildren<Text>();
+                if (buttonText != null)
+                {
+                    buttonText.text = roller.IsPaused() ? "▶ PLAY" : "⏸ PAUSE";
+                }
+            });
+        }
+        
+        // Reset Button
+        if (resetButton != null)
+        {
+            resetButton.onClick.AddListener(() => {
+                roller.ResetPath();
+            });
+        }
+    }
+    
+    void ConnectColorControls(SpirographRoller roller)
+    {
+        // HSV Sliders with live preview
+        if (hueSlider != null && saturationSlider != null && valueSlider != null)
+        {
+            // Initialize from current color
+            float h, s, v;
+            Color.RGBToHSV(roller.currentLineColor, out h, out s, out v);
+            hueSlider.value = h;
+            saturationSlider.value = s;
+            valueSlider.value = v;
+            
+            System.Action updateColor = () => {
+                Color newColor = Color.HSVToRGB(hueSlider.value, saturationSlider.value, valueSlider.value);
+                roller.ChangeLineColor(newColor);
+                
+                // Update preview
+                if (colorPreview != null)
+                {
+                    Image preview = colorPreview.GetComponent<Image>();
+                    if (preview != null) preview.color = newColor;
+                }
+            };
+            
+            hueSlider.onValueChanged.AddListener((value) => {
+                updateColor();
+                UpdateSliderLabel(hueSlider, value.ToString("F2"));
+            });
+            
+            saturationSlider.onValueChanged.AddListener((value) => {
+                updateColor();
+                UpdateSliderLabel(saturationSlider, value.ToString("F2"));
+            });
+            
+            valueSlider.onValueChanged.AddListener((value) => {
+                updateColor();
+                UpdateSliderLabel(valueSlider, value.ToString("F2"));
+            });
+            
+            // Initialize labels
+            UpdateSliderLabel(hueSlider, h.ToString("F2"));
+            UpdateSliderLabel(saturationSlider, s.ToString("F2"));
+            UpdateSliderLabel(valueSlider, v.ToString("F2"));
+        }
+        
+        // Color preset buttons already connected in CreateColorPresetButton
+    }
+    
+    void ConnectVisualControls(SpirographRoller roller)
+    {
+        // Toggle Visuals Button
+        if (toggleVisualsButton != null)
+        {
+            toggleVisualsButton.onClick.AddListener(() => {
+                roller.ToggleVisibility();
+                Text buttonText = toggleVisualsButton.GetComponentInChildren<Text>();
+                if (buttonText != null)
+                {
+                    buttonText.text = roller.AreVisualsVisible() ? "👁 HIDE" : "👁 SHOW";
+                }
+            });
+        }
+        
+        // Line Effects Button (cycle through effects)
+        if (lineEffectsButton != null)
+        {
+            lineEffectsButton.onClick.AddListener(() => {
+                roller.CycleLineEffect();
+                Text buttonText = lineEffectsButton.GetComponentInChildren<Text>();
+                if (buttonText != null)
+                {
+                    buttonText.text = "✨ LINE FX: " + roller.GetCurrentEffectName();
+                }
+            });
+            
+            // Initialize text
+            Text buttonText = lineEffectsButton.GetComponentInChildren<Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = "✨ LINE FX: " + roller.GetCurrentEffectName();
+            }
+        }
+    }
+    
+    void ConnectCameraControls(CameraController cameraController)
+    {
+        // Look At (Free Fly) Button
+        if (lookAtButton != null)
+        {
+            lookAtButton.onClick.AddListener(() => {
+                cameraController.SetCameraMode(0); // LookAt mode
+            });
+        }
+        
+        // Smooth Follow Button
+        if (smoothFollowButton != null)
+        {
+            smoothFollowButton.onClick.AddListener(() => {
+                cameraController.SetCameraMode(1); // SmoothFollow mode
+            });
+        }
+        
+        // Auto Orbit Button
+        if (autoOrbitButton != null)
+        {
+            autoOrbitButton.onClick.AddListener(() => {
+                cameraController.ToggleAutoOrbit();
+                Text buttonText = autoOrbitButton.GetComponentInChildren<Text>();
+                if (buttonText != null)
+                {
+                    buttonText.text = cameraController.IsAutoOrbitEnabled() ? "🎬 STOP ORBIT" : "🎬 AUTO ORBIT";
+                }
+            });
+        }
+    }
+    
+    void UpdateSliderLabel(Slider slider, string value)
+    {
+        if (slider == null) return;
+        Text label = slider.transform.Find("ValueLabel")?.GetComponent<Text>();
+        if (label != null)
+        {
+            label.text = value;
+        }
     }
     
     void Update()
