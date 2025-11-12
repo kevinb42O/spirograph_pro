@@ -1,0 +1,1178 @@
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+using System.Collections;
+using System.Collections.Generic;
+
+/// <summary>
+/// UI Generator for Spirograph controls with modern 2025+ glassmorphism space theme
+/// USAGE:
+/// 1. Add this component to any GameObject in your scene
+/// 2. In the Inspector, check the "generateUI" checkbox
+/// 3. The UI will be created automatically with smooth animations and cosmic aesthetics
+/// 4. Hook up the sliders/buttons to SpirographRoller, RotateParent, and CameraController manually
+/// </summary>
+public class SpirographUIManager : MonoBehaviour
+{
+    [Header("UI Elements - Auto-populated after generation")]
+    public Slider speedSlider;
+    public Slider cyclesSlider;
+    public Slider rotationSpeedSlider;
+    public Slider objectRotationSpeedSlider;
+    public Slider penDistanceSlider;
+    public Slider lineWidthSlider;
+    public Slider lineBrightnessSlider;
+    public Button pauseButton;
+    public Button resetButton;
+    public Button lookAtButton;
+    public Button smoothFollowButton;
+    public Button autoOrbitButton;
+    public Button toggleVisualsButton;
+    public Button lineEffectsButton;
+    public Button hideUIButton;
+    
+    [Header("Color Picker Elements")]
+    public Slider hueSlider;
+    public Slider saturationSlider;
+    public Slider valueSlider;
+    public GameObject colorPreview;
+    public Button[] colorPresetButtons;
+    
+    [Header("Section Toggles")]
+    public Button motionSectionToggle;
+    public Button visualsSectionToggle;
+    public Button colorSectionToggle;
+    public Button environmentSectionToggle;
+    
+    private GameObject motionSection;
+    private GameObject visualsSection;
+    private GameObject colorSection;
+    private GameObject environmentSection;
+    
+    [Header("Skybox Dropdown")]
+    public Dropdown skyboxDropdown;
+    
+    [Header("UI State")]
+    private GameObject controlPanel;
+    private bool isUIVisible = true;
+    
+    [Header("Generate UI")]
+    [Tooltip("Check this box to generate UI (will auto-uncheck after generation)")]
+    public bool generateUI = false;
+    
+    void OnValidate()
+    {
+        if (generateUI)
+        {
+            generateUI = false;
+            #if UNITY_EDITOR
+            GenerateCompleteUI();
+            #endif
+        }
+    }
+    
+    void Start()
+    {
+        // Find the control panel if it exists
+        if (controlPanel == null)
+        {
+            GameObject canvas = GameObject.Find("SpirographCanvas");
+            if (canvas != null)
+            {
+                controlPanel = canvas.transform.Find("ControlPanel")?.gameObject;
+            }
+        }
+        
+        // Find and setup the hide button
+        if (hideUIButton == null)
+        {
+            GameObject canvas = GameObject.Find("SpirographCanvas");
+            if (canvas != null)
+            {
+                Transform buttonTransform = canvas.transform.Find("HideUIButton");
+                if (buttonTransform != null)
+                {
+                    hideUIButton = buttonTransform.GetComponent<Button>();
+                }
+            }
+        }
+        
+        if (hideUIButton != null)
+        {
+            hideUIButton.onClick.AddListener(ToggleUI);
+        }
+    }
+    
+    void Update()
+    {
+        // Toggle UI visibility with Enter key
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+        {
+            ToggleUI();
+        }
+    }
+    
+    void ToggleUI()
+    {
+        isUIVisible = !isUIVisible;
+        
+        if (controlPanel != null)
+        {
+            StartCoroutine(AnimateUIToggle(controlPanel, isUIVisible));
+        }
+        
+        // Update button text with icon
+        if (hideUIButton != null)
+        {
+            Text buttonText = hideUIButton.GetComponentInChildren<Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = isUIVisible ? "⊗ HIDE" : "⊕ SHOW";
+            }
+        }
+        
+        Debug.Log($"UI {(isUIVisible ? "Shown" : "Hidden")} (Press Enter to toggle)");
+    }
+    
+    IEnumerator AnimateUIToggle(GameObject panel, bool show)
+    {
+        // IMPORTANT: Must activate panel BEFORE animating if showing
+        if (show && !panel.activeSelf)
+        {
+            panel.SetActive(true);
+        }
+        
+        CanvasGroup canvasGroup = panel.GetComponent<CanvasGroup>();
+        if (canvasGroup == null)
+        {
+            canvasGroup = panel.AddComponent<CanvasGroup>();
+        }
+        
+        // If showing, start from hidden state
+        if (show)
+        {
+            canvasGroup.alpha = 0f;
+            panel.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
+        }
+        
+        float duration = 0.3f;
+        float elapsed = 0f;
+        float startAlpha = canvasGroup.alpha;
+        float targetAlpha = show ? 1f : 0f;
+        
+        Vector3 startScale = panel.transform.localScale;
+        Vector3 targetScale = show ? Vector3.one : new Vector3(0.95f, 0.95f, 1f);
+        
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            // Smooth easing
+            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+            
+            canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, smoothT);
+            panel.transform.localScale = Vector3.Lerp(startScale, targetScale, smoothT);
+            
+            yield return null;
+        }
+        
+        canvasGroup.alpha = targetAlpha;
+        panel.transform.localScale = targetScale;
+        canvasGroup.interactable = show;
+        canvasGroup.blocksRaycasts = show;
+        
+        // Only deactivate if hiding
+        if (!show)
+        {
+            panel.SetActive(false);
+        }
+    }
+    
+    [ContextMenu("Generate Complete UI")]
+    void GenerateCompleteUI()
+    {
+        // Create EventSystem
+        if (EventSystem.current == null)
+        {
+            GameObject eventSystem = new GameObject("EventSystem");
+            eventSystem.AddComponent<EventSystem>();
+            eventSystem.AddComponent<InputSystemUIInputModule>();
+            Debug.Log("✓ Created EventSystem with InputSystemUIInputModule");
+        }
+        
+        // Create Canvas
+        GameObject canvasObj = new GameObject("SpirographCanvas");
+        Canvas canvas = canvasObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 100;
+        
+        CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+        
+        canvasObj.AddComponent<GraphicRaycaster>();
+        
+        // Create Hide UI Button (Top-Right Corner - ALWAYS VISIBLE) - Modern glassmorphic style
+        hideUIButton = CreateModernButton(canvas.transform, "HideUIButton", new Vector2(-15, -15), new Vector2(90, 40), "⊗ HIDE");
+        RectTransform hideButtonRect = hideUIButton.GetComponent<RectTransform>();
+        hideButtonRect.anchorMin = new Vector2(1, 1); // Top-right anchor
+        hideButtonRect.anchorMax = new Vector2(1, 1);
+        hideButtonRect.pivot = new Vector2(1, 1);
+        
+        // Glassmorphic style for hide button
+        Image hideButtonImage = hideUIButton.GetComponent<Image>();
+        hideButtonImage.color = new Color(0.05f, 0.05f, 0.15f, 0.7f); // Deep space glass
+        
+        // Add subtle glow outline
+        Outline hideOutline = hideUIButton.gameObject.AddComponent<Outline>();
+        hideOutline.effectColor = new Color(0.4f, 0.6f, 1f, 0.5f); // Cyan glow
+        hideOutline.effectDistance = new Vector2(1, -1);
+        
+        Text hideButtonText = hideUIButton.GetComponentInChildren<Text>();
+        hideButtonText.fontSize = 14;
+        hideButtonText.fontStyle = FontStyle.Bold;
+        hideButtonText.color = new Color(0.8f, 0.9f, 1f, 0.95f); // Soft cyan-white
+        
+        // Create Panel Background - Modern Glassmorphism with cosmic theme - NOW SCROLLABLE!
+        GameObject panel = new GameObject("ControlPanel");
+        panel.transform.SetParent(canvas.transform, false);
+        RectTransform panelRect = panel.AddComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0, 0);
+        panelRect.anchorMax = new Vector2(0, 1);
+        panelRect.pivot = new Vector2(0, 0.5f);
+        panelRect.anchoredPosition = new Vector2(15, 0);
+        panelRect.sizeDelta = new Vector2(340, -80); // Full height minus padding (80 = 15 top + 15 bottom + 50 for title)
+        
+        Image panelImage = panel.AddComponent<Image>();
+        panelImage.color = new Color(0.02f, 0.02f, 0.08f, 0.75f);
+        
+        // Add Canvas Group for smooth transitions
+        CanvasGroup panelGroup = panel.AddComponent<CanvasGroup>();
+        panelGroup.alpha = 1f;
+        
+        // Add subtle outer glow
+        Shadow panelGlow = panel.AddComponent<Shadow>();
+        panelGlow.effectColor = new Color(0.2f, 0.4f, 0.8f, 0.3f);
+        panelGlow.effectDistance = new Vector2(0, 0);
+        panelGlow.useGraphicAlpha = true;
+        
+        // Add border accent
+        Outline panelOutline = panel.AddComponent<Outline>();
+        panelOutline.effectColor = new Color(0.3f, 0.5f, 0.9f, 0.25f);
+        panelOutline.effectDistance = new Vector2(2, -2);
+        
+        // Add ScrollRect for scrolling
+        ScrollRect panelScroll = panel.AddComponent<ScrollRect>();
+        panelScroll.horizontal = false;
+        panelScroll.vertical = true;
+        panelScroll.scrollSensitivity = 20f;
+        panelScroll.movementType = ScrollRect.MovementType.Clamped;
+        panelScroll.inertia = true;
+        panelScroll.decelerationRate = 0.135f;
+        
+        // Create Viewport for ScrollRect
+        GameObject viewport = new GameObject("Viewport");
+        viewport.transform.SetParent(panel.transform, false);
+        RectTransform viewportRect = viewport.AddComponent<RectTransform>();
+        viewportRect.anchorMin = Vector2.zero;
+        viewportRect.anchorMax = Vector2.one;
+        viewportRect.sizeDelta = Vector2.zero;
+        viewportRect.pivot = new Vector2(0, 1);
+        
+        // Add mask to viewport
+        Image viewportImage = viewport.AddComponent<Image>();
+        viewportImage.color = Color.clear; // Invisible but required for mask
+        Mask viewportMask = viewport.AddComponent<Mask>();
+        viewportMask.showMaskGraphic = false;
+        
+        panelScroll.viewport = viewportRect;
+        
+        // Create Content container (this will hold all our UI elements)
+        GameObject content = new GameObject("Content");
+        content.transform.SetParent(viewport.transform, false);
+        RectTransform contentRect = content.AddComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0, 1);
+        contentRect.anchorMax = new Vector2(1, 1);
+        contentRect.pivot = new Vector2(0.5f, 1);
+        contentRect.anchoredPosition = Vector2.zero;
+        contentRect.sizeDelta = new Vector2(0, 2000); // Large height, will be adjusted later
+        
+        panelScroll.content = contentRect;
+        
+        // Store reference to control panel
+        controlPanel = panel;
+        
+        // Now parent all UI elements to 'content' instead of 'panel'
+        Transform uiParent = content.transform;
+        
+        float yPos = -20; // More top padding
+        
+        // Add panel title
+        GameObject titleObj = new GameObject("PanelTitle");
+        titleObj.transform.SetParent(uiParent, false);
+        RectTransform titleRect = titleObj.AddComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0, 1);
+        titleRect.anchorMax = new Vector2(1, 1);
+        titleRect.pivot = new Vector2(0.5f, 1);
+        titleRect.anchoredPosition = new Vector2(0, -10);
+        titleRect.sizeDelta = new Vector2(-20, 35);
+        Text titleText = titleObj.AddComponent<Text>();
+        titleText.text = "✦ SPIROGRAPH CONTROLS";
+        titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        titleText.fontSize = 18;
+        titleText.fontStyle = FontStyle.Bold;
+        titleText.color = new Color(0.7f, 0.85f, 1f, 0.9f); // Bright cyan
+        titleText.alignment = TextAnchor.MiddleCenter;
+        
+        // Add subtle glow to title
+        Shadow titleShadow = titleObj.AddComponent<Shadow>();
+        titleShadow.effectColor = new Color(0.3f, 0.6f, 1f, 0.5f);
+        titleShadow.effectDistance = new Vector2(0, 0);
+        
+        yPos -= 55;
+        
+        // ============================================================
+        // MOTION SECTION
+        // ============================================================
+        motionSectionToggle = CreateSectionHeader(uiParent, "MotionHeader", new Vector2(15, yPos), "⚡ MOTION & SPEED", true);
+        yPos -= 45;
+        
+        motionSection = CreateSection(uiParent, "MotionSection", new Vector2(15, yPos));
+        float motionYPos = -10;
+        
+        // Speed Slider
+        Text speedText;
+        speedSlider = CreateModernSlider(motionSection.transform, "SpeedSlider", new Vector2(0, motionYPos), 0f, 250f, 
+            0f, out speedText, "Travel Speed", "0.0");
+        motionYPos -= 70;
+        
+        // Cycles Slider
+        Text cyclesText;
+        cyclesSlider = CreateModernSlider(motionSection.transform, "CyclesSlider", new Vector2(0, motionYPos), 1f, 500f, 
+            10f, out cyclesText, "Cycles", "10");
+        cyclesSlider.wholeNumbers = true;
+        motionYPos -= 70;
+        
+        // Rotation Speed Slider
+        Text rotationSpeedText;
+        rotationSpeedSlider = CreateModernSlider(motionSection.transform, "RotationSpeedSlider", new Vector2(0, motionYPos), 0f, 1f, 
+            0.5f, out rotationSpeedText, "Rotation Speed", "0.5");
+        motionYPos -= 70;
+        
+        // Object Rotation Speed Slider
+        Text objectRotationSpeedText;
+        objectRotationSpeedSlider = CreateModernSlider(motionSection.transform, "ObjectRotationSpeedSlider", new Vector2(0, motionYPos), 0f, 100f, 
+            1f, out objectRotationSpeedText, "Object Rotation", "1.0");
+        motionYPos -= 70;
+        
+        // Pen Distance Slider
+        Text penDistanceText;
+        penDistanceSlider = CreateModernSlider(motionSection.transform, "PenDistanceSlider", new Vector2(0, motionYPos), 0f, 5f, 
+            0.3f, out penDistanceText, "Rotor Radius", "0.30x");
+        motionYPos -= 75;
+        
+        // Set motion section height
+        RectTransform motionRect = motionSection.GetComponent<RectTransform>();
+        motionRect.sizeDelta = new Vector2(290, Mathf.Abs(motionYPos) + 10);
+        yPos += motionYPos - 20;
+        
+        // ============================================================
+        // VISUALS SECTION
+        // ============================================================
+        visualsSectionToggle = CreateSectionHeader(uiParent, "VisualsHeader", new Vector2(15, yPos), "🎨 VISUAL EFFECTS", true);
+        yPos -= 45;
+        
+        visualsSection = CreateSection(uiParent, "VisualsSection", new Vector2(15, yPos));
+        float visualsYPos = -10;
+        
+        // Line Width Slider
+        Text lineWidthText;
+        lineWidthSlider = CreateModernSlider(visualsSection.transform, "LineWidthSlider", new Vector2(0, visualsYPos), 0.01f, 2f, 
+            0.3f, out lineWidthText, "Line Width", "0.30");
+        visualsYPos -= 70;
+        
+        // Line Brightness Slider
+        Text lineBrightnessText;
+        lineBrightnessSlider = CreateModernSlider(visualsSection.transform, "LineBrightnessSlider", new Vector2(0, visualsYPos), 0f, 1f, 
+            1f, out lineBrightnessText, "Line Brightness", "1.00");
+        visualsYPos -= 75;
+        
+        // Pause/Reset Buttons
+        pauseButton = CreateModernButton(visualsSection.transform, "PauseButton", new Vector2(0, visualsYPos), new Vector2(140, 38), "⏸ PAUSE");
+        resetButton = CreateModernButton(visualsSection.transform, "ResetButton", new Vector2(150, visualsYPos), new Vector2(140, 38), "↻ RESET");
+        visualsYPos -= 50;
+        
+        // Toggle Visuals Button
+        toggleVisualsButton = CreateModernButton(visualsSection.transform, "ToggleVisualsButton", new Vector2(0, visualsYPos), new Vector2(290, 38), "👁 SHOW/HIDE");
+        visualsYPos -= 50;
+        
+        // Line Effects Cycle Button
+        lineEffectsButton = CreateModernButton(visualsSection.transform, "LineEffectsButton", new Vector2(0, visualsYPos), new Vector2(290, 38), "✨ LINE FX: Normal");
+        Image effectsImg = lineEffectsButton.GetComponent<Image>();
+        effectsImg.color = new Color(0.15f, 0.08f, 0.20f, 0.8f);
+        visualsYPos -= 55;
+        
+        // Set visuals section height
+        RectTransform visualsRect = visualsSection.GetComponent<RectTransform>();
+        visualsRect.sizeDelta = new Vector2(290, Mathf.Abs(visualsYPos) + 10);
+        yPos += visualsYPos - 20;
+        
+        // ============================================================
+        // COLOR PICKER SECTION
+        // ============================================================
+        colorSectionToggle = CreateSectionHeader(uiParent, "ColorHeader", new Vector2(15, yPos), "🌈 COLOR PICKER", true);
+        yPos -= 45;
+        
+        colorSection = CreateSection(uiParent, "ColorSection", new Vector2(15, yPos));
+        float colorYPos = -10;
+        
+        // Color Preview Box
+        GameObject previewObj = new GameObject("ColorPreview");
+        previewObj.transform.SetParent(colorSection.transform, false);
+        RectTransform previewRect = previewObj.AddComponent<RectTransform>();
+        previewRect.anchorMin = new Vector2(0, 1);
+        previewRect.anchorMax = new Vector2(0, 1);
+        previewRect.pivot = new Vector2(0, 1);
+        previewRect.anchoredPosition = new Vector2(0, colorYPos);
+        previewRect.sizeDelta = new Vector2(290, 50);
+        Image previewImage = previewObj.AddComponent<Image>();
+        previewImage.color = Color.cyan;
+        Outline previewOutline = previewObj.AddComponent<Outline>();
+        previewOutline.effectColor = new Color(1f, 1f, 1f, 0.5f);
+        previewOutline.effectDistance = new Vector2(2, -2);
+        colorPreview = previewObj;
+        colorYPos -= 60;
+        
+        // HSV Sliders
+        Text hueText;
+        hueSlider = CreateModernSlider(colorSection.transform, "HueSlider", new Vector2(0, colorYPos), 0f, 1f, 
+            0.5f, out hueText, "Hue", "0.50");
+        colorYPos -= 70;
+        
+        Text satText;
+        saturationSlider = CreateModernSlider(colorSection.transform, "SaturationSlider", new Vector2(0, colorYPos), 0f, 1f, 
+            0.8f, out satText, "Saturation", "0.80");
+        colorYPos -= 70;
+        
+        Text valText;
+        valueSlider = CreateModernSlider(colorSection.transform, "ValueSlider", new Vector2(0, colorYPos), 0f, 1f, 
+            1f, out valText, "Brightness", "1.00");
+        colorYPos -= 75;
+        
+        // Color Presets (2 rows of 6)
+        AddColorPresetLabel(colorSection.transform, new Vector2(0, colorYPos), "Quick Colors:");
+        colorYPos -= 25;
+        
+        colorPresetButtons = new Button[16];
+        Color[] presetColors = new Color[] {
+            Color.white, Color.black, Color.red, new Color(1f, 0.5f, 0f), Color.yellow, Color.green,
+            Color.cyan, Color.blue, new Color(0.5f, 0f, 1f), Color.magenta,
+            new Color(1f, 0.4f, 0.7f), new Color(0.5f, 0.3f, 0.1f), new Color(0.8f, 0.8f, 0.8f),
+            new Color(0.5f, 0.5f, 0.5f), new Color(0.3f, 0.3f, 0.3f), new Color(1f, 0.8f, 0f)
+        };
+        
+        for (int i = 0; i < 16; i++)
+        {
+            int row = i / 8;
+            int col = i % 8;
+            float xPos = col * 36f;
+            float yPosPreset = colorYPos - (row * 32f);
+            colorPresetButtons[i] = CreateColorPresetButton(colorSection.transform, $"Preset{i}", 
+                new Vector2(xPos, yPosPreset), presetColors[i]);
+        }
+        colorYPos -= 72;
+        
+        // Set color section height
+        RectTransform colorRect = colorSection.GetComponent<RectTransform>();
+        colorRect.sizeDelta = new Vector2(290, Mathf.Abs(colorYPos) + 10);
+        yPos += colorYPos - 20;
+        
+        // ============================================================
+        // ENVIRONMENT SECTION
+        // ============================================================
+        environmentSectionToggle = CreateSectionHeader(uiParent, "EnvironmentHeader", new Vector2(15, yPos), "🌌 ENVIRONMENT", false);
+        yPos -= 45;
+        
+        environmentSection = CreateSection(uiParent, "EnvironmentSection", new Vector2(15, yPos));
+        environmentSection.SetActive(false); // Collapsed by default
+        float envYPos = -10;
+        
+        // Skybox Label
+        GameObject skyboxLabelObj = new GameObject("SkyboxLabel");
+        skyboxLabelObj.transform.SetParent(environmentSection.transform, false);
+        RectTransform skyboxLabelRect = skyboxLabelObj.AddComponent<RectTransform>();
+        skyboxLabelRect.anchorMin = new Vector2(0, 1);
+        skyboxLabelRect.anchorMax = new Vector2(0, 1);
+        skyboxLabelRect.pivot = new Vector2(0, 1);
+        skyboxLabelRect.anchoredPosition = new Vector2(0, envYPos);
+        skyboxLabelRect.sizeDelta = new Vector2(290, 20);
+        Text skyboxLabel = skyboxLabelObj.AddComponent<Text>();
+        skyboxLabel.text = "Skybox Theme:";
+        skyboxLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        skyboxLabel.fontSize = 12;
+        skyboxLabel.fontStyle = FontStyle.Bold;
+        skyboxLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
+        skyboxLabel.alignment = TextAnchor.MiddleLeft;
+        envYPos -= 28;
+        
+        // Skybox Dropdown
+        skyboxDropdown = CreateModernDropdown(environmentSection.transform, "SkyboxDropdown", new Vector2(0, envYPos));
+        envYPos -= 70;
+        
+        // Set environment section height
+        RectTransform envRect = environmentSection.GetComponent<RectTransform>();
+        envRect.sizeDelta = new Vector2(290, Mathf.Abs(envYPos) + 10);
+        yPos += envYPos - 20;
+        
+        // ============================================================
+        // CAMERA SECTION
+        // ============================================================
+        Button cameraSectionToggle = CreateSectionHeader(uiParent, "CameraHeader", new Vector2(15, yPos), "📷 CAMERA CONTROLS", false);
+        yPos -= 45;
+        
+        GameObject cameraSection = CreateSection(uiParent, "CameraSection", new Vector2(15, yPos));
+        cameraSection.SetActive(false); // Collapsed by default
+        float cameraYPos = -10;
+        
+        // Camera Mode Buttons
+        lookAtButton = CreateModernButton(cameraSection.transform, "LookAtButton", new Vector2(0, cameraYPos), new Vector2(140, 38), "✈ Free Fly");
+        smoothFollowButton = CreateModernButton(cameraSection.transform, "SmoothFollowButton", new Vector2(150, cameraYPos), new Vector2(140, 38), "◎ Follow");
+        cameraYPos -= 50;
+        
+        autoOrbitButton = CreateModernButton(cameraSection.transform, "AutoOrbitButton", new Vector2(0, cameraYPos), new Vector2(290, 38), "🎬 AUTO ORBIT");
+        Image orbitImg = autoOrbitButton.GetComponent<Image>();
+        orbitImg.color = new Color(0.15f, 0.05f, 0.25f, 0.8f);
+        cameraYPos -= 55;
+        
+        // Set camera section height
+        RectTransform cameraRect = cameraSection.GetComponent<RectTransform>();
+        cameraRect.sizeDelta = new Vector2(290, Mathf.Abs(cameraYPos) + 10);
+        yPos += cameraYPos - 20;
+        
+        // Setup section toggle functionality
+        SetupSectionToggle(motionSectionToggle, motionSection);
+        SetupSectionToggle(visualsSectionToggle, visualsSection);
+        SetupSectionToggle(colorSectionToggle, colorSection);
+        SetupSectionToggle(environmentSectionToggle, environmentSection);
+        SetupSectionToggle(cameraSectionToggle, cameraSection);
+        
+        // Setup HSV sliders to update preview
+        if (hueSlider != null && saturationSlider != null && valueSlider != null && colorPreview != null)
+        {
+            System.Action updatePreview = () => {
+                Color newColor = Color.HSVToRGB(hueSlider.value, saturationSlider.value, valueSlider.value);
+                Image preview = colorPreview.GetComponent<Image>();
+                if (preview != null) preview.color = newColor;
+            };
+            
+            hueSlider.onValueChanged.AddListener((val) => {
+                updatePreview();
+                Text text = hueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
+                if (text != null) text.text = val.ToString("F2");
+            });
+            
+            saturationSlider.onValueChanged.AddListener((val) => {
+                updatePreview();
+                Text text = saturationSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
+                if (text != null) text.text = val.ToString("F2");
+            });
+            
+            valueSlider.onValueChanged.AddListener((val) => {
+                updatePreview();
+                Text text = valueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
+                if (text != null) text.text = val.ToString("F2");
+            });
+        }
+        
+        // Instructions - Modern style
+        GameObject instructions = new GameObject("Instructions");
+        instructions.transform.SetParent(uiParent, false);
+        RectTransform instructRect = instructions.AddComponent<RectTransform>();
+        instructRect.anchorMin = new Vector2(0, 1);
+        instructRect.anchorMax = new Vector2(0, 1);
+        instructRect.pivot = new Vector2(0, 1);
+        instructRect.anchoredPosition = new Vector2(15, yPos);
+        instructRect.sizeDelta = new Vector2(290, 110);
+        
+        // Add subtle background for instructions
+        Image instructBg = instructions.AddComponent<Image>();
+        instructBg.color = new Color(0.05f, 0.05f, 0.15f, 0.4f);
+        
+        GameObject instructTextObj = new GameObject("InstructionsText");
+        instructTextObj.transform.SetParent(instructions.transform, false);
+        RectTransform instructTextRect = instructTextObj.AddComponent<RectTransform>();
+        instructTextRect.anchorMin = Vector2.zero;
+        instructTextRect.anchorMax = Vector2.one;
+        instructTextRect.offsetMin = new Vector2(8, 8);
+        instructTextRect.offsetMax = new Vector2(-8, -8);
+        
+        Text instructText = instructTextObj.AddComponent<Text>();
+        instructText.text = "💡 Click section headers (▼/▶) to expand/collapse\n\n⌨ WASD/ZQSD: Move • Shift: Sprint\n🖱 Right Click: Look • Scroll: Zoom\n\n🎨 Click color swatches for instant colors\n🌌 Choose skybox from Environment section";
+        instructText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        instructText.fontSize = 10;
+        instructText.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
+        instructText.alignment = TextAnchor.UpperLeft;
+        instructText.lineSpacing = 1.15f;
+        
+        // Set final content height based on all UI elements
+        yPos -= 125; // Account for instructions height
+        contentRect.sizeDelta = new Vector2(0, Mathf.Abs(yPos) + 50);
+        
+        // Add hint text for Hide UI button - Modern style
+        GameObject hintText = new GameObject("HideUIHint");
+        hintText.transform.SetParent(canvas.transform, false);
+        RectTransform hintRect = hintText.AddComponent<RectTransform>();
+        hintRect.anchorMin = new Vector2(1, 1);
+        hintRect.anchorMax = new Vector2(1, 1);
+        hintRect.pivot = new Vector2(1, 1);
+        hintRect.anchoredPosition = new Vector2(-15, -60);
+        hintRect.sizeDelta = new Vector2(180, 22);
+        Text hint = hintText.AddComponent<Text>();
+        hint.text = "⏎ ENTER to toggle";
+        hint.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        hint.fontSize = 10;
+        hint.color = new Color(0.5f, 0.7f, 1f, 0.5f);
+        hint.alignment = TextAnchor.MiddleRight;
+        hint.fontStyle = FontStyle.Italic;
+        
+        // Add glow effect
+        Shadow hintGlow = hintText.AddComponent<Shadow>();
+        hintGlow.effectColor = new Color(0.3f, 0.5f, 1f, 0.3f);
+        hintGlow.effectDistance = new Vector2(0, 0);
+        
+        #if UNITY_EDITOR
+        UnityEditor.EditorUtility.SetDirty(this);
+        UnityEditor.Selection.activeGameObject = canvasObj;
+        #endif
+        
+        Debug.Log("✓ Generated complete UI! Canvas selected in Hierarchy.");
+        Debug.Log("✓ HIDE UI BUTTON: Top-right corner (always visible) - Press ENTER to toggle!");
+        Debug.Log("✓ You can now customize colors, sizes, and positions.");
+        Debug.Log("✓ Don't forget to assign 4 materials to SpirographRoller for the material buttons!");
+        Debug.Log("✓ UI automatically connects to SpirographRoller, RotateParent, and CameraController.");
+    }
+    
+    Slider CreateModernSlider(Transform parent, string name, Vector2 position, float min, float max, float value, out Text valueLabel, string labelText, string valueText)
+    {
+        // Container
+        GameObject sliderObj = new GameObject(name);
+        sliderObj.transform.SetParent(parent, false);
+        RectTransform sliderRect = sliderObj.AddComponent<RectTransform>();
+        sliderRect.anchorMin = new Vector2(0, 1);
+        sliderRect.anchorMax = new Vector2(0, 1);
+        sliderRect.pivot = new Vector2(0, 1);
+        sliderRect.anchoredPosition = position;
+        sliderRect.sizeDelta = new Vector2(290, 24);
+        
+        // Label (left aligned)
+        GameObject labelObj = new GameObject("Label");
+        labelObj.transform.SetParent(sliderObj.transform, false);
+        RectTransform labelRect = labelObj.AddComponent<RectTransform>();
+        labelRect.anchorMin = new Vector2(0, 1);
+        labelRect.anchorMax = new Vector2(0, 1);
+        labelRect.pivot = new Vector2(0, 1);
+        labelRect.anchoredPosition = new Vector2(0, 26);
+        labelRect.sizeDelta = new Vector2(180, 20);
+        Text label = labelObj.AddComponent<Text>();
+        label.text = labelText;
+        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.fontSize = 12;
+        label.fontStyle = FontStyle.Bold;
+        label.color = new Color(0.7f, 0.85f, 1f, 0.9f); // Cyan tint
+        label.alignment = TextAnchor.MiddleLeft;
+        
+        // Value Label (right aligned)
+        GameObject valueLabelObj = new GameObject("ValueLabel");
+        valueLabelObj.transform.SetParent(sliderObj.transform, false);
+        RectTransform valueLabelRect = valueLabelObj.AddComponent<RectTransform>();
+        valueLabelRect.anchorMin = new Vector2(1, 1);
+        valueLabelRect.anchorMax = new Vector2(1, 1);
+        valueLabelRect.pivot = new Vector2(1, 1);
+        valueLabelRect.anchoredPosition = new Vector2(0, 26);
+        valueLabelRect.sizeDelta = new Vector2(100, 20);
+        valueLabel = valueLabelObj.AddComponent<Text>();
+        valueLabel.text = valueText;
+        valueLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        valueLabel.fontSize = 11;
+        valueLabel.color = new Color(0.5f, 0.7f, 1f, 0.8f); // Softer cyan
+        valueLabel.alignment = TextAnchor.MiddleRight;
+        
+        // Background (glassmorphic)
+        GameObject bg = new GameObject("Background");
+        bg.transform.SetParent(sliderObj.transform, false);
+        RectTransform bgRect = bg.AddComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.sizeDelta = Vector2.zero;
+        Image bgImage = bg.AddComponent<Image>();
+        bgImage.color = new Color(0.1f, 0.15f, 0.25f, 0.4f); // Deep space glass
+        
+        // Add subtle outline
+        Outline bgOutline = bg.AddComponent<Outline>();
+        bgOutline.effectColor = new Color(0.2f, 0.4f, 0.7f, 0.3f);
+        bgOutline.effectDistance = new Vector2(1, -1);
+        
+        // Fill Area
+        GameObject fillArea = new GameObject("Fill Area");
+        fillArea.transform.SetParent(sliderObj.transform, false);
+        RectTransform fillAreaRect = fillArea.AddComponent<RectTransform>();
+        fillAreaRect.anchorMin = Vector2.zero;
+        fillAreaRect.anchorMax = Vector2.one;
+        fillAreaRect.offsetMin = new Vector2(4, 4);
+        fillAreaRect.offsetMax = new Vector2(-16, -4);
+        
+        // Fill (gradient cyan-blue)
+        GameObject fill = new GameObject("Fill");
+        fill.transform.SetParent(fillArea.transform, false);
+        RectTransform fillRect = fill.AddComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.sizeDelta = Vector2.zero;
+        Image fillImage = fill.AddComponent<Image>();
+        fillImage.color = new Color(0.3f, 0.6f, 1f, 0.6f); // Bright cyan
+        
+        // Add glow to fill
+        Shadow fillGlow = fill.AddComponent<Shadow>();
+        fillGlow.effectColor = new Color(0.4f, 0.7f, 1f, 0.5f);
+        fillGlow.effectDistance = new Vector2(0, 0);
+        
+        // Handle Area
+        GameObject handleArea = new GameObject("Handle Slide Area");
+        handleArea.transform.SetParent(sliderObj.transform, false);
+        RectTransform handleAreaRect = handleArea.AddComponent<RectTransform>();
+        handleAreaRect.anchorMin = Vector2.zero;
+        handleAreaRect.anchorMax = Vector2.one;
+        handleAreaRect.offsetMin = new Vector2(8, 0);
+        handleAreaRect.offsetMax = new Vector2(-8, 0);
+        
+        // Handle (modern circular design)
+        GameObject handle = new GameObject("Handle");
+        handle.transform.SetParent(handleArea.transform, false);
+        RectTransform handleRect = handle.AddComponent<RectTransform>();
+        handleRect.sizeDelta = new Vector2(16, 16);
+        Image handleImage = handle.AddComponent<Image>();
+        handleImage.color = new Color(0.9f, 0.95f, 1f, 1f); // Bright white-cyan
+        
+        // Add handle glow
+        Shadow handleGlow = handle.AddComponent<Shadow>();
+        handleGlow.effectColor = new Color(0.4f, 0.7f, 1f, 0.8f);
+        handleGlow.effectDistance = new Vector2(0, 0);
+        
+        // Slider
+        Slider slider = sliderObj.AddComponent<Slider>();
+        slider.fillRect = fillRect;
+        slider.handleRect = handleRect;
+        slider.targetGraphic = handleImage;
+        slider.minValue = min;
+        slider.maxValue = max;
+        slider.value = value;
+        
+        return slider;
+    }
+    
+    Button CreateSectionHeader(Transform parent, string name, Vector2 position, string headerText, bool startExpanded)
+    {
+        GameObject headerObj = new GameObject(name);
+        headerObj.transform.SetParent(parent, false);
+        RectTransform headerRect = headerObj.AddComponent<RectTransform>();
+        headerRect.anchorMin = new Vector2(0, 1);
+        headerRect.anchorMax = new Vector2(0, 1);
+        headerRect.pivot = new Vector2(0, 1);
+        headerRect.anchoredPosition = position;
+        headerRect.sizeDelta = new Vector2(290, 35);
+        
+        Image headerImage = headerObj.AddComponent<Image>();
+        headerImage.color = new Color(0.12f, 0.15f, 0.25f, 0.9f);
+        
+        Outline headerOutline = headerObj.AddComponent<Outline>();
+        headerOutline.effectColor = new Color(0.4f, 0.6f, 1f, 0.4f);
+        headerOutline.effectDistance = new Vector2(1, -1);
+        
+        Button button = headerObj.AddComponent<Button>();
+        button.targetGraphic = headerImage;
+        
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1.1f, 1.1f, 1.2f, 1f);
+        colors.pressedColor = new Color(0.9f, 0.9f, 1f, 1f);
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+        
+        GameObject textObj = new GameObject("Text");
+        textObj.transform.SetParent(headerObj.transform, false);
+        RectTransform textRect = textObj.AddComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.sizeDelta = Vector2.zero;
+        Text text = textObj.AddComponent<Text>();
+        text.text = (startExpanded ? "▼ " : "▶ ") + headerText;
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.fontSize = 13;
+        text.fontStyle = FontStyle.Bold;
+        text.color = new Color(0.8f, 0.95f, 1f, 1f);
+        text.alignment = TextAnchor.MiddleLeft;
+        
+        RectTransform textRectPadding = text.GetComponent<RectTransform>();
+        textRectPadding.offsetMin = new Vector2(10, 0);
+        textRectPadding.offsetMax = new Vector2(-10, 0);
+        
+        return button;
+    }
+    
+    GameObject CreateSection(Transform parent, string name, Vector2 position)
+    {
+        GameObject section = new GameObject(name);
+        section.transform.SetParent(parent, false);
+        RectTransform sectionRect = section.AddComponent<RectTransform>();
+        sectionRect.anchorMin = new Vector2(0, 1);
+        sectionRect.anchorMax = new Vector2(0, 1);
+        sectionRect.pivot = new Vector2(0, 1);
+        sectionRect.anchoredPosition = position;
+        sectionRect.sizeDelta = new Vector2(290, 100); // Temp, will be adjusted
+        
+        Image sectionBg = section.AddComponent<Image>();
+        sectionBg.color = new Color(0.03f, 0.03f, 0.1f, 0.5f);
+        
+        return section;
+    }
+    
+    void SetupSectionToggle(Button toggleButton, GameObject section)
+    {
+        if (toggleButton == null || section == null) return;
+        
+        toggleButton.onClick.AddListener(() => {
+            section.SetActive(!section.activeSelf);
+            Text buttonText = toggleButton.GetComponentInChildren<Text>();
+            if (buttonText != null)
+            {
+                string[] parts = buttonText.text.Split(' ');
+                if (parts.Length > 1)
+                {
+                    string arrow = section.activeSelf ? "▼" : "▶";
+                    buttonText.text = arrow + " " + string.Join(" ", parts, 1, parts.Length - 1);
+                }
+            }
+        });
+    }
+    
+    void AddColorPresetLabel(Transform parent, Vector2 position, string labelText)
+    {
+        GameObject labelObj = new GameObject("PresetLabel");
+        labelObj.transform.SetParent(parent, false);
+        RectTransform labelRect = labelObj.AddComponent<RectTransform>();
+        labelRect.anchorMin = new Vector2(0, 1);
+        labelRect.anchorMax = new Vector2(0, 1);
+        labelRect.pivot = new Vector2(0, 1);
+        labelRect.anchoredPosition = position;
+        labelRect.sizeDelta = new Vector2(290, 20);
+        Text label = labelObj.AddComponent<Text>();
+        label.text = labelText;
+        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.fontSize = 11;
+        label.fontStyle = FontStyle.Bold;
+        label.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
+        label.alignment = TextAnchor.MiddleLeft;
+    }
+    
+    Button CreateColorPresetButton(Transform parent, string name, Vector2 position, Color color)
+    {
+        GameObject buttonObj = new GameObject(name);
+        buttonObj.transform.SetParent(parent, false);
+        RectTransform buttonRect = buttonObj.AddComponent<RectTransform>();
+        buttonRect.anchorMin = new Vector2(0, 1);
+        buttonRect.anchorMax = new Vector2(0, 1);
+        buttonRect.pivot = new Vector2(0, 1);
+        buttonRect.anchoredPosition = position;
+        buttonRect.sizeDelta = new Vector2(32, 28);
+        
+        Image buttonImage = buttonObj.AddComponent<Image>();
+        buttonImage.color = color;
+        
+        Outline buttonOutline = buttonObj.AddComponent<Outline>();
+        buttonOutline.effectColor = new Color(1f, 1f, 1f, 0.5f);
+        buttonOutline.effectDistance = new Vector2(1, -1);
+        
+        Button button = buttonObj.AddComponent<Button>();
+        button.targetGraphic = buttonImage;
+        
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f);
+        colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+        
+        // Connect to SpirographRoller
+        button.onClick.AddListener(() => {
+            SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+            if (roller != null)
+            {
+                roller.ChangeLineColor(color);
+                
+                // Update HSV sliders
+                float h, s, v;
+                Color.RGBToHSV(color, out h, out s, out v);
+                if (hueSlider != null) hueSlider.value = h;
+                if (saturationSlider != null) saturationSlider.value = s;
+                if (valueSlider != null) valueSlider.value = v;
+                
+                // Update preview
+                if (colorPreview != null)
+                {
+                    Image preview = colorPreview.GetComponent<Image>();
+                    if (preview != null) preview.color = color;
+                }
+            }
+        });
+        
+        return button;
+    }
+    
+    Dropdown CreateModernDropdown(Transform parent, string name, Vector2 position)
+    {
+        // Main Dropdown GameObject
+        GameObject dropdownObj = new GameObject(name);
+        dropdownObj.transform.SetParent(parent, false);
+        RectTransform dropdownRect = dropdownObj.AddComponent<RectTransform>();
+        dropdownRect.anchorMin = new Vector2(0, 1);
+        dropdownRect.anchorMax = new Vector2(0, 1);
+        dropdownRect.pivot = new Vector2(0, 1);
+        dropdownRect.anchoredPosition = position;
+        dropdownRect.sizeDelta = new Vector2(290, 38);
+        
+        // Background
+        Image dropdownBg = dropdownObj.AddComponent<Image>();
+        dropdownBg.color = new Color(0.08f, 0.12f, 0.22f, 0.7f);
+        dropdownBg.raycastTarget = true;
+        
+        Outline dropdownOutline = dropdownObj.AddComponent<Outline>();
+        dropdownOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
+        dropdownOutline.effectDistance = new Vector2(1, -1);
+        
+        // Dropdown Component
+        Dropdown dropdown = dropdownObj.AddComponent<Dropdown>();
+        dropdown.targetGraphic = dropdownBg;
+        
+        // Label (shows current selection)
+        GameObject labelObj = new GameObject("Label");
+        labelObj.transform.SetParent(dropdownObj.transform, false);
+        RectTransform labelRect = labelObj.AddComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(10, 2);
+        labelRect.offsetMax = new Vector2(-30, -2);
+        Text labelText = labelObj.AddComponent<Text>();
+        labelText.text = "Starfield";
+        labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        labelText.fontSize = 13;
+        labelText.fontStyle = FontStyle.Bold;
+        labelText.color = new Color(0.85f, 0.95f, 1f, 0.95f);
+        labelText.alignment = TextAnchor.MiddleLeft;
+        dropdown.captionText = labelText;
+        
+        // Arrow
+        GameObject arrowObj = new GameObject("Arrow");
+        arrowObj.transform.SetParent(dropdownObj.transform, false);
+        RectTransform arrowRect = arrowObj.AddComponent<RectTransform>();
+        arrowRect.anchorMin = new Vector2(1, 0);
+        arrowRect.anchorMax = new Vector2(1, 1);
+        arrowRect.offsetMin = new Vector2(-25, 0);
+        arrowRect.offsetMax = new Vector2(-5, 0);
+        Text arrowText = arrowObj.AddComponent<Text>();
+        arrowText.text = "▼";
+        arrowText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        arrowText.fontSize = 12;
+        arrowText.color = new Color(0.6f, 0.8f, 1f, 0.8f);
+        arrowText.alignment = TextAnchor.MiddleCenter;
+        
+        // Template (the dropdown list that appears)
+        GameObject templateObj = new GameObject("Template");
+        templateObj.transform.SetParent(dropdownObj.transform, false);
+        RectTransform templateRect = templateObj.AddComponent<RectTransform>();
+        templateRect.anchorMin = new Vector2(0, 0);
+        templateRect.anchorMax = new Vector2(1, 0);
+        templateRect.pivot = new Vector2(0.5f, 1);
+        templateRect.anchoredPosition = new Vector2(0, 2);
+        templateRect.sizeDelta = new Vector2(0, 150);
+        
+        Image templateBg = templateObj.AddComponent<Image>();
+        templateBg.color = new Color(0.05f, 0.08f, 0.15f, 0.95f);
+        templateBg.raycastTarget = true;
+        
+        // Add Canvas component to template to render it on top of ScrollRect mask
+        Canvas templateCanvas = templateObj.AddComponent<Canvas>();
+        templateCanvas.overrideSorting = true;
+        templateCanvas.sortingOrder = 1000; // Render on top of everything
+        templateObj.AddComponent<GraphicRaycaster>();
+        
+        Outline templateOutline = templateObj.AddComponent<Outline>();
+        templateOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.5f);
+        templateOutline.effectDistance = new Vector2(2, -2);
+        
+        ScrollRect scrollRect = templateObj.AddComponent<ScrollRect>();
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.scrollSensitivity = 10;
+        
+        // Viewport
+        GameObject viewportObj = new GameObject("Viewport");
+        viewportObj.transform.SetParent(templateObj.transform, false);
+        RectTransform viewportRect = viewportObj.AddComponent<RectTransform>();
+        viewportRect.anchorMin = Vector2.zero;
+        viewportRect.anchorMax = Vector2.one;
+        viewportRect.sizeDelta = Vector2.zero;
+        
+        Image viewportMask = viewportObj.AddComponent<Image>();
+        viewportMask.color = Color.white;
+        Mask mask = viewportObj.AddComponent<Mask>();
+        mask.showMaskGraphic = false;
+        
+        scrollRect.viewport = viewportRect;
+        
+        // Content
+        GameObject contentObj = new GameObject("Content");
+        contentObj.transform.SetParent(viewportObj.transform, false);
+        RectTransform contentRect = contentObj.AddComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0, 1);
+        contentRect.anchorMax = new Vector2(1, 1);
+        contentRect.pivot = new Vector2(0.5f, 1);
+        contentRect.anchoredPosition = Vector2.zero;
+        contentRect.sizeDelta = new Vector2(0, 150);
+        
+        scrollRect.content = contentRect;
+        
+        // Item (template for each option)
+        GameObject itemObj = new GameObject("Item");
+        itemObj.transform.SetParent(contentObj.transform, false);
+        RectTransform itemRect = itemObj.AddComponent<RectTransform>();
+        itemRect.anchorMin = new Vector2(0, 1);
+        itemRect.anchorMax = new Vector2(1, 1);
+        itemRect.pivot = new Vector2(0.5f, 1);
+        itemRect.anchoredPosition = Vector2.zero;
+        itemRect.sizeDelta = new Vector2(0, 30);
+        
+        Toggle itemToggle = itemObj.AddComponent<Toggle>();
+        itemToggle.isOn = false;
+        itemToggle.interactable = true;
+        
+        Image itemBg = itemObj.AddComponent<Image>();
+        itemBg.color = new Color(0.1f, 0.15f, 0.25f, 1f);
+        itemBg.raycastTarget = true;
+        itemToggle.targetGraphic = itemBg;
+        
+        ColorBlock toggleColors = itemToggle.colors;
+        toggleColors.normalColor = new Color(1f, 1f, 1f, 1f);
+        toggleColors.highlightedColor = new Color(0.8f, 0.95f, 1f, 1f);
+        toggleColors.pressedColor = new Color(0.6f, 0.8f, 1f, 1f);
+        toggleColors.selectedColor = new Color(0.4f, 0.7f, 1f, 1f);
+        itemToggle.colors = toggleColors;
+        
+        // Item Label
+        GameObject itemLabelObj = new GameObject("Item Label");
+        itemLabelObj.transform.SetParent(itemObj.transform, false);
+        RectTransform itemLabelRect = itemLabelObj.AddComponent<RectTransform>();
+        itemLabelRect.anchorMin = Vector2.zero;
+        itemLabelRect.anchorMax = Vector2.one;
+        itemLabelRect.offsetMin = new Vector2(10, 1);
+        itemLabelRect.offsetMax = new Vector2(-10, -1);
+        Text itemLabelText = itemLabelObj.AddComponent<Text>();
+        itemLabelText.text = "Option";
+        itemLabelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        itemLabelText.fontSize = 12;
+        itemLabelText.color = new Color(0.85f, 0.95f, 1f, 0.95f);
+        itemLabelText.alignment = TextAnchor.MiddleLeft;
+        dropdown.itemText = itemLabelText;
+        
+        dropdown.template = templateRect;
+        templateObj.SetActive(false);
+        
+        // Populate with skybox names and connect to SkyboxManager
+        SkyboxManager skyboxManager = FindObjectOfType<SkyboxManager>();
+        if (skyboxManager == null)
+        {
+            // Create SkyboxManager if it doesn't exist
+            GameObject managerObj = new GameObject("SkyboxManager");
+            skyboxManager = managerObj.AddComponent<SkyboxManager>();
+        }
+        
+        dropdown.ClearOptions();
+        dropdown.AddOptions(new List<string>(skyboxManager.GetAllSkyboxNames()));
+        
+        // Set current value
+        int currentIndex = skyboxManager.GetCurrentSkyboxIndex();
+        if (currentIndex >= 0)
+        {
+            dropdown.value = currentIndex;
+        }
+        
+        // Connect listener
+        dropdown.onValueChanged.AddListener((index) => {
+            skyboxManager.SetSkybox(index);
+        });
+        
+        return dropdown;
+    }
+    
+    Button CreateModernButton(Transform parent, string name, Vector2 position, Vector2 size, string buttonText)
+    {
+        GameObject buttonObj = new GameObject(name);
+        buttonObj.transform.SetParent(parent, false);
+        RectTransform buttonRect = buttonObj.AddComponent<RectTransform>();
+        buttonRect.anchorMin = new Vector2(0, 1);
+        buttonRect.anchorMax = new Vector2(0, 1);
+        buttonRect.pivot = new Vector2(0, 1);
+        buttonRect.anchoredPosition = position;
+        buttonRect.sizeDelta = size;
+        
+        // Glassmorphic background
+        Image buttonImage = buttonObj.AddComponent<Image>();
+        buttonImage.color = new Color(0.08f, 0.12f, 0.22f, 0.7f); // Deep space glass
+        
+        // Add subtle outline
+        Outline buttonOutline = buttonObj.AddComponent<Outline>();
+        buttonOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.4f); // Cyan glow
+        buttonOutline.effectDistance = new Vector2(1, -1);
+        
+        // Add hover glow effect
+        Shadow buttonGlow = buttonObj.AddComponent<Shadow>();
+        buttonGlow.effectColor = new Color(0.2f, 0.4f, 0.8f, 0.3f);
+        buttonGlow.effectDistance = new Vector2(0, 0);
+        
+        Button button = buttonObj.AddComponent<Button>();
+        button.targetGraphic = buttonImage;
+        
+        // Setup hover colors
+        ColorBlock colors = button.colors;
+        colors.normalColor = new Color(1f, 1f, 1f, 1f);
+        colors.highlightedColor = new Color(0.85f, 0.95f, 1f, 1f); // Bright on hover
+        colors.pressedColor = new Color(0.6f, 0.8f, 1f, 1f); // Cyan on press
+        colors.selectedColor = new Color(0.85f, 0.95f, 1f, 1f);
+        colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+        colors.colorMultiplier = 1.2f;
+        colors.fadeDuration = 0.15f;
+        button.colors = colors;
+        
+        // Text
+        GameObject textObj = new GameObject("Text");
+        textObj.transform.SetParent(buttonObj.transform, false);
+        RectTransform textRect = textObj.AddComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.sizeDelta = Vector2.zero;
+        Text text = textObj.AddComponent<Text>();
+        text.text = buttonText;
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.fontSize = 12;
+        text.fontStyle = FontStyle.Bold;
+        text.color = new Color(0.85f, 0.95f, 1f, 0.95f); // Bright cyan-white
+        text.alignment = TextAnchor.MiddleCenter;
+        
+        // Add text shadow for depth
+        Shadow textShadow = textObj.AddComponent<Shadow>();
+        textShadow.effectColor = new Color(0, 0, 0, 0.5f);
+        textShadow.effectDistance = new Vector2(1, -1);
+        
+        return button;
+    }
+}
