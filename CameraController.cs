@@ -257,7 +257,7 @@ public class CameraController : MonoBehaviour
         }
     }
     
-    void ToggleAutoOrbit()
+    public void ToggleAutoOrbit()
     {
         isOrbiting = !isOrbiting;
         
@@ -276,6 +276,7 @@ public class CameraController : MonoBehaviour
             targetOffset = cachedStructureCenter;
             
             Debug.Log("Auto Orbit: ENABLED - Orbiting complete structure center");
+            Debug.Log("🎬 Auto Orbit: ENABLED");
         }
         else
         {
@@ -285,7 +286,7 @@ public class CameraController : MonoBehaviour
             orbitTransitionProgress = 0f;
             currentOrbitPreset = OrbitPreset.Free;
             
-            Debug.Log("Auto Orbit: DISABLED");
+            Debug.Log("🎬 Auto Orbit: DISABLED");
         }
         
         UpdateButtonColors();
@@ -343,6 +344,11 @@ public class CameraController : MonoBehaviour
         orbitTransitionProgress = 0f;
         storedVerticalAngle = verticalAngle;
         storedDistance = currentDistance;
+    }
+    
+    public bool IsAutoOrbitEnabled()
+    {
+        return isOrbiting;
     }
     
     void UpdateAutoOrbitMode()
@@ -780,6 +786,20 @@ public class CameraController : MonoBehaviour
         if (cachedCamera != null)
         {
             cachedCamera.fieldOfView = currentFOV;
+        }
+    }
+    
+    public void SetCameraMode(int modeIndex)
+    {
+        if (modeIndex == 0)
+        {
+            SetCameraMode(CameraMode.LookAt);
+            Debug.Log("✈ Camera Mode: FREE FLY");
+        }
+        else if (modeIndex == 1)
+        {
+            SetCameraMode(CameraMode.SmoothFollow);
+            Debug.Log("◎ Camera Mode: SMOOTH FOLLOW");
         }
     }
     

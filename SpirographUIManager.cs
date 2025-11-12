@@ -72,6 +72,14 @@ public class SpirographUIManager : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Call this method from code or Unity events to generate UI at runtime
+    /// </summary>
+    public void GenerateUIAtRuntime()
+    {
+        GenerateCompleteUI();
+    }
+    
     void Start()
     {
         // Find the control panel if it exists
@@ -102,6 +110,574 @@ public class SpirographUIManager : MonoBehaviour
         {
             hideUIButton.onClick.AddListener(ToggleUI);
         }
+        
+        // Auto-connect all UI elements to their respective scripts
+        ConnectUIElements();
+    }
+    
+    /// <summary>
+    /// Automatically finds and connects all UI elements to SpirographRoller, CameraController, etc.
+    /// This makes the UI "just work" without manual setup in the Inspector.
+    /// </summary>
+    void ConnectUIElements()
+    {
+        // Find the main scripts
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        CameraController cameraController = FindObjectOfType<CameraController>();
+        RotateParent rotateParent = FindObjectOfType<RotateParent>();
+        SkyboxManager skyboxManager = FindObjectOfType<SkyboxManager>();
+        
+        // Find UI elements if not already assigned
+        FindUIElements();
+        
+        // Connect SpirographRoller controls
+        if (roller != null)
+        {
+            ConnectSpirographControls(roller);
+            ConnectColorControls(roller);
+            ConnectVisualControls(roller);
+        }
+        else
+        {
+            Debug.LogWarning("SpirographUIManager: SpirographRoller not found in scene. UI controls won't function.");
+        }
+        
+        // Connect Camera controls
+        if (cameraController != null)
+        {
+            ConnectCameraControls(cameraController);
+        }
+        else
+        {
+            Debug.LogWarning("SpirographUIManager: CameraController not found. Camera buttons won't function.");
+        }
+        
+        // Connect Rotation controls
+        if (rotateParent != null && objectRotationSpeedSlider != null)
+        {
+            objectRotationSpeedSlider.minValue = 0f;
+            objectRotationSpeedSlider.maxValue = 100f;
+            objectRotationSpeedSlider.value = rotateParent.rotationSpeed;
+            objectRotationSpeedSlider.onValueChanged.AddListener((value) => {
+                rotateParent.rotationSpeed = value;
+                UpdateSliderLabel(objectRotationSpeedSlider, value.ToString("F1"));
+            });
+        }
+        
+        // Connect Skybox dropdown
+        if (skyboxManager != null && skyboxDropdown != null)
+        {
+            // Already connected in CreateModernDropdown, but verify
+            int currentIndex = skyboxManager.GetCurrentSkyboxIndex();
+            if (currentIndex >= 0)
+            {
+                skyboxDropdown.value = currentIndex;
+            }
+        }
+        
+        Debug.Log("✓ UI Manager: All controls connected and ready!");
+    }
+    
+    void FindUIElements()
+    {
+        // Find sliders if not assigned
+        if (speedSlider == null)
+            speedSlider = GameObject.Find("SpeedSlider")?.GetComponent<Slider>();
+        if (cyclesSlider == null)
+            cyclesSlider = GameObject.Find("CyclesSlider")?.GetComponent<Slider>();
+        if (rotationSpeedSlider == null)
+            rotationSpeedSlider = GameObject.Find("RotationSpeedSlider")?.GetComponent<Slider>();
+        if (objectRotationSpeedSlider == null)
+            objectRotationSpeedSlider = GameObject.Find("ObjectRotationSpeedSlider")?.GetComponent<Slider>();
+        if (penDistanceSlider == null)
+            penDistanceSlider = GameObject.Find("PenDistanceSlider")?.GetComponent<Slider>();
+        if (lineWidthSlider == null)
+            lineWidthSlider = GameObject.Find("LineWidthSlider")?.GetComponent<Slider>();
+        if (lineBrightnessSlider == null)
+            lineBrightnessSlider = GameObject.Find("LineBrightnessSlider")?.GetComponent<Slider>();
+        if (hueSlider == null)
+            hueSlider = GameObject.Find("HueSlider")?.GetComponent<Slider>();
+        if (saturationSlider == null)
+            saturationSlider = GameObject.Find("SaturationSlider")?.GetComponent<Slider>();
+        if (valueSlider == null)
+            valueSlider = GameObject.Find("ValueSlider")?.GetComponent<Slider>();
+        
+        // Find buttons if not assigned
+        if (pauseButton == null)
+            pauseButton = GameObject.Find("PauseButton")?.GetComponent<Button>();
+        if (resetButton == null)
+            resetButton = GameObject.Find("ResetButton")?.GetComponent<Button>();
+        if (toggleVisualsButton == null)
+            toggleVisualsButton = GameObject.Find("ToggleVisualsButton")?.GetComponent<Button>();
+        if (lineEffectsButton == null)
+            lineEffectsButton = GameObject.Find("LineEffectsButton")?.GetComponent<Button>();
+        if (lookAtButton == null)
+            lookAtButton = GameObject.Find("LookAtButton")?.GetComponent<Button>();
+        if (smoothFollowButton == null)
+            smoothFollowButton = GameObject.Find("SmoothFollowButton")?.GetComponent<Button>();
+        if (autoOrbitButton == null)
+            autoOrbitButton = GameObject.Find("AutoOrbitButton")?.GetComponent<Button>();
+        
+        // Find color preview
+        if (colorPreview == null)
+            colorPreview = GameObject.Find("ColorPreview");
+        
+        // Find skybox dropdown
+        if (skyboxDropdown == null)
+            skyboxDropdown = GameObject.Find("SkyboxDropdown")?.GetComponent<Dropdown>();
+    }
+    
+    void ConnectSpirographControls(SpirographRoller roller)
+    {
+        // Speed Slider
+        if (speedSlider != null)
+        {
+            speedSlider.minValue = 0f;
+            speedSlider.maxValue = 250f;
+            speedSlider.value = roller.speed;
+            speedSlider.onValueChanged.AddListener((value) => {
+                roller.speed = value;
+                UpdateSliderLabel(speedSlider, value.ToString("F1"));
+            });
+            UpdateSliderLabel(speedSlider, roller.speed.ToString("F1"));
+        }
+        
+        // Cycles Slider
+        if (cyclesSlider != null)
+        {
+            cyclesSlider.minValue = 1f;
+            cyclesSlider.maxValue = 500f;
+            cyclesSlider.wholeNumbers = true;
+            cyclesSlider.value = roller.cycles;
+            cyclesSlider.onValueChanged.AddListener((value) => {
+                roller.cycles = (int)value;
+                UpdateSliderLabel(cyclesSlider, ((int)value).ToString());
+            });
+            UpdateSliderLabel(cyclesSlider, roller.cycles.ToString());
+        }
+        
+        // Rotation Speed Slider
+        if (rotationSpeedSlider != null)
+        {
+            rotationSpeedSlider.minValue = 0f;
+            rotationSpeedSlider.maxValue = 1f;
+            rotationSpeedSlider.value = roller.rotationSpeed;
+            rotationSpeedSlider.onValueChanged.AddListener((value) => {
+                roller.rotationSpeed = value;
+                UpdateSliderLabel(rotationSpeedSlider, value.ToString("F2"));
+            });
+            UpdateSliderLabel(rotationSpeedSlider, roller.rotationSpeed.ToString("F2"));
+        }
+        
+        // Pen Distance Slider
+        if (penDistanceSlider != null)
+        {
+            penDistanceSlider.minValue = 0f;
+            penDistanceSlider.maxValue = 5f;
+            penDistanceSlider.value = roller.penDistance;
+            penDistanceSlider.onValueChanged.AddListener((value) => {
+                roller.penDistance = value;
+                UpdateSliderLabel(penDistanceSlider, value.ToString("F2") + "x");
+            });
+            UpdateSliderLabel(penDistanceSlider, roller.penDistance.ToString("F2") + "x");
+        }
+        
+        // Line Width Slider
+        if (lineWidthSlider != null)
+        {
+            lineWidthSlider.minValue = 0.01f;
+            lineWidthSlider.maxValue = 2f;
+            lineWidthSlider.value = roller.lineWidth;
+            lineWidthSlider.onValueChanged.AddListener((value) => {
+                roller.lineWidth = value;
+                UpdateSliderLabel(lineWidthSlider, value.ToString("F2"));
+            });
+            UpdateSliderLabel(lineWidthSlider, roller.lineWidth.ToString("F2"));
+        }
+        
+        // Line Brightness Slider
+        if (lineBrightnessSlider != null)
+        {
+            lineBrightnessSlider.minValue = 0f;
+            lineBrightnessSlider.maxValue = 1f;
+            lineBrightnessSlider.value = roller.lineBrightness;
+            lineBrightnessSlider.onValueChanged.AddListener((value) => {
+                roller.lineBrightness = value;
+                UpdateSliderLabel(lineBrightnessSlider, value.ToString("F2"));
+            });
+            UpdateSliderLabel(lineBrightnessSlider, roller.lineBrightness.ToString("F2"));
+        }
+        
+        // Pause Button
+        if (pauseButton != null)
+        {
+            pauseButton.onClick.AddListener(() => {
+                roller.TogglePause();
+                Text buttonText = pauseButton.GetComponentInChildren<Text>();
+                if (buttonText != null)
+                {
+                    buttonText.text = roller.IsPaused() ? "▶ PLAY" : "⏸ PAUSE";
+                }
+            });
+        }
+        
+        // Reset Button
+        if (resetButton != null)
+        {
+            resetButton.onClick.AddListener(() => {
+                roller.ResetPath();
+            });
+        }
+    }
+    
+    void ConnectColorControls(SpirographRoller roller)
+    {
+        // HSV Sliders with live preview
+        if (hueSlider != null && saturationSlider != null && valueSlider != null)
+        {
+            // Initialize from current color
+            float h, s, v;
+            Color.RGBToHSV(roller.currentLineColor, out h, out s, out v);
+            hueSlider.value = h;
+            saturationSlider.value = s;
+            valueSlider.value = v;
+            
+            System.Action updateColor = () => {
+                Color newColor = Color.HSVToRGB(hueSlider.value, saturationSlider.value, valueSlider.value);
+                roller.ChangeLineColor(newColor);
+                
+                // Update preview
+                if (colorPreview != null)
+                {
+                    Image preview = colorPreview.GetComponent<Image>();
+                    if (preview != null) preview.color = newColor;
+                }
+            };
+            
+            hueSlider.onValueChanged.AddListener((value) => {
+                updateColor();
+                UpdateSliderLabel(hueSlider, value.ToString("F2"));
+            });
+            
+            saturationSlider.onValueChanged.AddListener((value) => {
+                updateColor();
+                UpdateSliderLabel(saturationSlider, value.ToString("F2"));
+            });
+            
+            valueSlider.onValueChanged.AddListener((value) => {
+                updateColor();
+                UpdateSliderLabel(valueSlider, value.ToString("F2"));
+            });
+            
+            // Initialize labels
+            UpdateSliderLabel(hueSlider, h.ToString("F2"));
+            UpdateSliderLabel(saturationSlider, s.ToString("F2"));
+            UpdateSliderLabel(valueSlider, v.ToString("F2"));
+        }
+        
+        // Color preset buttons already connected in CreateColorPresetButton
+    }
+    
+    void ConnectVisualControls(SpirographRoller roller)
+    {
+        // Toggle Visuals Button
+        if (toggleVisualsButton != null)
+        {
+            toggleVisualsButton.onClick.AddListener(() => {
+                roller.ToggleVisibility();
+                Text buttonText = toggleVisualsButton.GetComponentInChildren<Text>();
+                if (buttonText != null)
+                {
+                    buttonText.text = roller.AreVisualsVisible() ? "👁 HIDE" : "👁 SHOW";
+                }
+            });
+        }
+        
+        // Line Effects Button (cycle through effects)
+        if (lineEffectsButton != null)
+        {
+            lineEffectsButton.onClick.AddListener(() => {
+                roller.CycleLineEffect();
+                Text buttonText = lineEffectsButton.GetComponentInChildren<Text>();
+                if (buttonText != null)
+                {
+                    buttonText.text = "✨ LINE FX: " + roller.GetCurrentEffectName();
+                }
+            });
+            
+            // Initialize text
+            Text buttonText = lineEffectsButton.GetComponentInChildren<Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = "✨ LINE FX: " + roller.GetCurrentEffectName();
+            }
+        }
+    }
+    
+    void ConnectCameraControls(CameraController cameraController)
+    {
+        // Look At (Free Fly) Button
+        if (lookAtButton != null)
+        {
+            lookAtButton.onClick.AddListener(() => {
+                cameraController.SetCameraMode(0); // LookAt mode
+            });
+        }
+        
+        // Smooth Follow Button
+        if (smoothFollowButton != null)
+        {
+            smoothFollowButton.onClick.AddListener(() => {
+                cameraController.SetCameraMode(1); // SmoothFollow mode
+            });
+        }
+        
+        // Auto Orbit Button
+        if (autoOrbitButton != null)
+        {
+            autoOrbitButton.onClick.AddListener(() => {
+                cameraController.ToggleAutoOrbit();
+                Text buttonText = autoOrbitButton.GetComponentInChildren<Text>();
+                if (buttonText != null)
+                {
+                    buttonText.text = cameraController.IsAutoOrbitEnabled() ? "🎬 STOP ORBIT" : "🎬 AUTO ORBIT";
+                }
+            });
+        }
+    }
+    
+    void UpdateSliderLabel(Slider slider, string value)
+    {
+        if (slider == null) return;
+        Text label = slider.transform.Find("ValueLabel")?.GetComponent<Text>();
+        if (label != null)
+        {
+            label.text = value;
+        }
+    }
+    
+    /// <summary>
+    /// Apply a preset configuration to the spirograph
+    /// </summary>
+    void ApplyPreset(int presetIndex)
+    {
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        if (roller == null)
+        {
+            Debug.LogWarning("Cannot apply preset: SpirographRoller not found");
+            return;
+        }
+        
+        // Define preset configurations
+        switch (presetIndex)
+        {
+            case 0: // Classic
+                roller.speed = 50f;
+                roller.cycles = 50;
+                roller.rotationSpeed = 0.5f;
+                roller.penDistance = 0.3f;
+                roller.lineWidth = 0.3f;
+                roller.ChangeLineColor(Color.cyan);
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Normal;
+                Debug.Log("⭐ Applied Classic preset");
+                break;
+                
+            case 1: // Rosette
+                roller.speed = 80f;
+                roller.cycles = 120;
+                roller.rotationSpeed = 0.7f;
+                roller.penDistance = 0.5f;
+                roller.lineWidth = 0.4f;
+                roller.ChangeLineColor(new Color(1f, 0.4f, 0.7f)); // Pink
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Glow;
+                Debug.Log("⭐ Applied Rosette preset");
+                break;
+                
+            case 2: // Flower
+                roller.speed = 60f;
+                roller.cycles = 80;
+                roller.rotationSpeed = 0.8f;
+                roller.penDistance = 0.7f;
+                roller.lineWidth = 0.5f;
+                roller.ChangeLineColor(new Color(1f, 0.8f, 0f)); // Gold
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Rainbow;
+                Debug.Log("⭐ Applied Flower preset");
+                break;
+                
+            case 3: // Star
+                roller.speed = 100f;
+                roller.cycles = 200;
+                roller.rotationSpeed = 0.3f;
+                roller.penDistance = 0.2f;
+                roller.lineWidth = 0.2f;
+                roller.ChangeLineColor(Color.white);
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Neon;
+                Debug.Log("⭐ Applied Star preset");
+                break;
+                
+            case 4: // Spiral
+                roller.speed = 40f;
+                roller.cycles = 300;
+                roller.rotationSpeed = 0.9f;
+                roller.penDistance = 1.2f;
+                roller.lineWidth = 0.25f;
+                roller.ChangeLineColor(new Color(0.5f, 0f, 1f)); // Purple
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Pulse;
+                Debug.Log("⭐ Applied Spiral preset");
+                break;
+                
+            case 5: // Chaos
+                roller.speed = 150f;
+                roller.cycles = 400;
+                roller.rotationSpeed = 0.15f;
+                roller.penDistance = 0.8f;
+                roller.lineWidth = 0.15f;
+                roller.ChangeLineColor(Color.red);
+                roller.lineEffectMode = SpirographRoller.LineEffectMode.Hologram;
+                Debug.Log("⭐ Applied Chaos preset");
+                break;
+        }
+        
+        // Update UI sliders to reflect new values
+        UpdateSlidersFromRoller(roller);
+    }
+    
+    void UpdateSlidersFromRoller(SpirographRoller roller)
+    {
+        if (speedSlider != null)
+        {
+            speedSlider.value = roller.speed;
+            UpdateSliderLabel(speedSlider, roller.speed.ToString("F1"));
+        }
+        
+        if (cyclesSlider != null)
+        {
+            cyclesSlider.value = roller.cycles;
+            UpdateSliderLabel(cyclesSlider, roller.cycles.ToString());
+        }
+        
+        if (rotationSpeedSlider != null)
+        {
+            rotationSpeedSlider.value = roller.rotationSpeed;
+            UpdateSliderLabel(rotationSpeedSlider, roller.rotationSpeed.ToString("F2"));
+        }
+        
+        if (penDistanceSlider != null)
+        {
+            penDistanceSlider.value = roller.penDistance;
+            UpdateSliderLabel(penDistanceSlider, roller.penDistance.ToString("F2") + "x");
+        }
+        
+        if (lineWidthSlider != null)
+        {
+            lineWidthSlider.value = roller.lineWidth;
+            UpdateSliderLabel(lineWidthSlider, roller.lineWidth.ToString("F2"));
+        }
+        
+        // Update color sliders and preview
+        float h, s, v;
+        Color.RGBToHSV(roller.currentLineColor, out h, out s, out v);
+        
+        if (hueSlider != null)
+        {
+            hueSlider.value = h;
+            UpdateSliderLabel(hueSlider, h.ToString("F2"));
+        }
+        
+        if (saturationSlider != null)
+        {
+            saturationSlider.value = s;
+            UpdateSliderLabel(saturationSlider, s.ToString("F2"));
+        }
+        
+        if (valueSlider != null)
+        {
+            valueSlider.value = v;
+            UpdateSliderLabel(valueSlider, v.ToString("F2"));
+        }
+        
+        if (colorPreview != null)
+        {
+            Image preview = colorPreview.GetComponent<Image>();
+            if (preview != null) preview.color = roller.currentLineColor;
+        }
+        
+        // Update line effects button text
+        if (lineEffectsButton != null)
+        {
+            Text buttonText = lineEffectsButton.GetComponentInChildren<Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = "✨ LINE FX: " + roller.GetCurrentEffectName();
+            }
+        }
+    }
+    
+    void SaveCurrentConfiguration()
+    {
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        if (roller == null)
+        {
+            Debug.LogWarning("Cannot save: SpirographRoller not found");
+            return;
+        }
+        
+        // Save to PlayerPrefs (simple persistence)
+        PlayerPrefs.SetFloat("Spirograph_Speed", roller.speed);
+        PlayerPrefs.SetInt("Spirograph_Cycles", roller.cycles);
+        PlayerPrefs.SetFloat("Spirograph_RotationSpeed", roller.rotationSpeed);
+        PlayerPrefs.SetFloat("Spirograph_PenDistance", roller.penDistance);
+        PlayerPrefs.SetFloat("Spirograph_LineWidth", roller.lineWidth);
+        PlayerPrefs.SetFloat("Spirograph_LineBrightness", roller.lineBrightness);
+        
+        // Save color as HSV
+        float h, s, v;
+        Color.RGBToHSV(roller.currentLineColor, out h, out s, out v);
+        PlayerPrefs.SetFloat("Spirograph_ColorH", h);
+        PlayerPrefs.SetFloat("Spirograph_ColorS", s);
+        PlayerPrefs.SetFloat("Spirograph_ColorV", v);
+        
+        PlayerPrefs.SetInt("Spirograph_LineEffect", (int)roller.lineEffectMode);
+        PlayerPrefs.Save();
+        
+        Debug.Log("💾 Configuration saved successfully!");
+    }
+    
+    void LoadSavedConfiguration()
+    {
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        if (roller == null)
+        {
+            Debug.LogWarning("Cannot load: SpirographRoller not found");
+            return;
+        }
+        
+        if (!PlayerPrefs.HasKey("Spirograph_Speed"))
+        {
+            Debug.LogWarning("📂 No saved configuration found");
+            return;
+        }
+        
+        // Load from PlayerPrefs
+        roller.speed = PlayerPrefs.GetFloat("Spirograph_Speed", 50f);
+        roller.cycles = PlayerPrefs.GetInt("Spirograph_Cycles", 50);
+        roller.rotationSpeed = PlayerPrefs.GetFloat("Spirograph_RotationSpeed", 0.5f);
+        roller.penDistance = PlayerPrefs.GetFloat("Spirograph_PenDistance", 0.3f);
+        roller.lineWidth = PlayerPrefs.GetFloat("Spirograph_LineWidth", 0.3f);
+        roller.lineBrightness = PlayerPrefs.GetFloat("Spirograph_LineBrightness", 1f);
+        
+        // Load color
+        float h = PlayerPrefs.GetFloat("Spirograph_ColorH", 0.5f);
+        float s = PlayerPrefs.GetFloat("Spirograph_ColorS", 0.8f);
+        float v = PlayerPrefs.GetFloat("Spirograph_ColorV", 1f);
+        roller.ChangeLineColor(Color.HSVToRGB(h, s, v));
+        
+        roller.lineEffectMode = (SpirographRoller.LineEffectMode)PlayerPrefs.GetInt("Spirograph_LineEffect", 0);
+        
+        // Update UI
+        UpdateSlidersFromRoller(roller);
+        
+        Debug.Log("📂 Configuration loaded successfully!");
     }
     
     void Update()
@@ -567,12 +1143,73 @@ public class SpirographUIManager : MonoBehaviour
         cameraRect.sizeDelta = new Vector2(290, Mathf.Abs(cameraYPos) + 10);
         yPos += cameraYPos - 20;
         
+        // ============================================================
+        // PRESETS SECTION - Save/Load Favorite Configurations
+        // ============================================================
+        Button presetsSectionToggle = CreateSectionHeader(uiParent, "PresetsHeader", new Vector2(15, yPos), "⭐ PATTERN PRESETS", false);
+        yPos -= 45;
+        
+        GameObject presetsSection = CreateSection(uiParent, "PresetsSection", new Vector2(15, yPos));
+        presetsSection.SetActive(false); // Collapsed by default
+        float presetsYPos = -10;
+        
+        // Preset buttons (3 columns, 2 rows = 6 presets)
+        string[] presetNames = new string[] {
+            "Classic", "Rosette", "Flower", "Star", "Spiral", "Chaos"
+        };
+        
+        for (int i = 0; i < 6; i++)
+        {
+            int row = i / 3;
+            int col = i % 3;
+            float xPos = col * 95f;
+            float yPosPreset = presetsYPos - (row * 50f);
+            
+            Button presetBtn = CreateModernButton(presetsSection.transform, $"Preset{i}Button", 
+                new Vector2(xPos, yPosPreset), new Vector2(90, 42), presetNames[i]);
+            
+            // Store index for closure
+            int presetIndex = i;
+            presetBtn.onClick.AddListener(() => {
+                ApplyPreset(presetIndex);
+            });
+        }
+        presetsYPos -= 110;
+        
+        // Save/Load buttons
+        Button savePresetButton = CreateModernButton(presetsSection.transform, "SavePresetButton", 
+            new Vector2(0, presetsYPos), new Vector2(140, 38), "💾 SAVE");
+        Button loadPresetButton = CreateModernButton(presetsSection.transform, "LoadPresetButton", 
+            new Vector2(150, presetsYPos), new Vector2(140, 38), "📂 LOAD");
+        
+        Image saveBtnImg = savePresetButton.GetComponent<Image>();
+        saveBtnImg.color = new Color(0.1f, 0.25f, 0.15f, 0.8f); // Green tint
+        
+        Image loadBtnImg = loadPresetButton.GetComponent<Image>();
+        loadBtnImg.color = new Color(0.15f, 0.15f, 0.25f, 0.8f); // Blue tint
+        
+        savePresetButton.onClick.AddListener(() => {
+            SaveCurrentConfiguration();
+        });
+        
+        loadPresetButton.onClick.AddListener(() => {
+            LoadSavedConfiguration();
+        });
+        
+        presetsYPos -= 55;
+        
+        // Set presets section height
+        RectTransform presetsRect = presetsSection.GetComponent<RectTransform>();
+        presetsRect.sizeDelta = new Vector2(290, Mathf.Abs(presetsYPos) + 10);
+        yPos += presetsYPos - 20;
+        
         // Setup section toggle functionality
         SetupSectionToggle(motionSectionToggle, motionSection);
         SetupSectionToggle(visualsSectionToggle, visualsSection);
         SetupSectionToggle(colorSectionToggle, colorSection);
         SetupSectionToggle(environmentSectionToggle, environmentSection);
         SetupSectionToggle(cameraSectionToggle, cameraSection);
+        SetupSectionToggle(presetsSectionToggle, presetsSection);
         
         // Setup HSV sliders to update preview
         if (hueSlider != null && saturationSlider != null && valueSlider != null && colorPreview != null)
@@ -625,12 +1262,18 @@ public class SpirographUIManager : MonoBehaviour
         instructTextRect.offsetMax = new Vector2(-8, -8);
         
         Text instructText = instructTextObj.AddComponent<Text>();
-        instructText.text = "💡 Click section headers (▼/▶) to expand/collapse\n\n⌨ WASD/ZQSD: Move • Shift: Sprint\n🖱 Right Click: Look • Scroll: Zoom\n\n🎨 Click color swatches for instant colors\n🌌 Choose skybox from Environment section";
+        instructText.text = "💡 QUICK START GUIDE\n━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                           "▼/▶ Click headers to expand/collapse\n" +
+                           "⌨ WASD/ZQSD: Move • Shift: Sprint\n" +
+                           "🖱 Right Click: Look • Scroll: Zoom\n" +
+                           "🎨 Click color swatches for instant colors\n" +
+                           "⏎ Press ENTER to hide/show this panel\n" +
+                           "F1: Keyboard shortcuts • F2: Stats";
         instructText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         instructText.fontSize = 10;
         instructText.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
         instructText.alignment = TextAnchor.UpperLeft;
-        instructText.lineSpacing = 1.15f;
+        instructText.lineSpacing = 1.2f;
         
         // Set final content height based on all UI elements
         yPos -= 125; // Account for instructions height
@@ -658,6 +1301,141 @@ public class SpirographUIManager : MonoBehaviour
         hintGlow.effectColor = new Color(0.3f, 0.5f, 1f, 0.3f);
         hintGlow.effectDistance = new Vector2(0, 0);
         
+        // Create Performance/Status Display (Bottom-Right) - Optional, can be toggled
+        GameObject statusPanel = new GameObject("StatusPanel");
+        statusPanel.transform.SetParent(canvas.transform, false);
+        RectTransform statusRect = statusPanel.AddComponent<RectTransform>();
+        statusRect.anchorMin = new Vector2(1, 0);
+        statusRect.anchorMax = new Vector2(1, 0);
+        statusRect.pivot = new Vector2(1, 0);
+        statusRect.anchoredPosition = new Vector2(-15, 15);
+        statusRect.sizeDelta = new Vector2(200, 120);
+        
+        Image statusBg = statusPanel.AddComponent<Image>();
+        statusBg.color = new Color(0.02f, 0.02f, 0.08f, 0.75f);
+        
+        Outline statusOutline = statusPanel.AddComponent<Outline>();
+        statusOutline.effectColor = new Color(0.3f, 0.5f, 0.9f, 0.25f);
+        statusOutline.effectDistance = new Vector2(1, -1);
+        
+        // Status text container
+        GameObject statusTextObj = new GameObject("StatusText");
+        statusTextObj.transform.SetParent(statusPanel.transform, false);
+        RectTransform statusTextRect = statusTextObj.AddComponent<RectTransform>();
+        statusTextRect.anchorMin = Vector2.zero;
+        statusTextRect.anchorMax = Vector2.one;
+        statusTextRect.offsetMin = new Vector2(10, 10);
+        statusTextRect.offsetMax = new Vector2(-10, -10);
+        
+        Text statusText = statusTextObj.AddComponent<Text>();
+        statusText.text = "⚡ SPIROGRAPH PRO\n━━━━━━━━━━━━━━━━\n📊 FPS: --\n⚙️ Speed: --\n🎨 Effect: --\n📷 Camera: --";
+        statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        statusText.fontSize = 10;
+        statusText.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
+        statusText.alignment = TextAnchor.UpperLeft;
+        statusText.lineSpacing = 1.2f;
+        
+        // Initially hide status panel (can be toggled with a hotkey later)
+        statusPanel.SetActive(false);
+        
+        // Add toggle button for status panel
+        Button toggleStatusButton = CreateModernButton(canvas.transform, "ToggleStatusButton", new Vector2(-15, 15), new Vector2(35, 35), "📊");
+        RectTransform toggleStatusRect = toggleStatusButton.GetComponent<RectTransform>();
+        toggleStatusRect.anchorMin = new Vector2(1, 0);
+        toggleStatusRect.anchorMax = new Vector2(1, 0);
+        toggleStatusRect.pivot = new Vector2(1, 0);
+        
+        Image toggleStatusImg = toggleStatusButton.GetComponent<Image>();
+        toggleStatusImg.color = new Color(0.05f, 0.05f, 0.15f, 0.7f);
+        
+        toggleStatusButton.onClick.AddListener(() => {
+            statusPanel.SetActive(!statusPanel.activeSelf);
+        });
+        
+        // Add keyboard shortcuts panel (initially hidden, toggle with F1)
+        GameObject shortcutsPanel = new GameObject("ShortcutsPanel");
+        shortcutsPanel.transform.SetParent(canvas.transform, false);
+        RectTransform shortcutsRect = shortcutsPanel.AddComponent<RectTransform>();
+        shortcutsRect.anchorMin = new Vector2(0.5f, 0.5f);
+        shortcutsRect.anchorMax = new Vector2(0.5f, 0.5f);
+        shortcutsRect.pivot = new Vector2(0.5f, 0.5f);
+        shortcutsRect.anchoredPosition = Vector2.zero;
+        shortcutsRect.sizeDelta = new Vector2(500, 400);
+        
+        Image shortcutsBg = shortcutsPanel.AddComponent<Image>();
+        shortcutsBg.color = new Color(0.02f, 0.02f, 0.08f, 0.95f);
+        
+        Outline shortcutsOutline = shortcutsPanel.AddComponent<Outline>();
+        shortcutsOutline.effectColor = new Color(0.4f, 0.6f, 1f, 0.5f);
+        shortcutsOutline.effectDistance = new Vector2(2, -2);
+        
+        // Shortcuts title
+        GameObject shortcutsTitleObj = new GameObject("Title");
+        shortcutsTitleObj.transform.SetParent(shortcutsPanel.transform, false);
+        RectTransform shortcutsTitleRect = shortcutsTitleObj.AddComponent<RectTransform>();
+        shortcutsTitleRect.anchorMin = new Vector2(0, 1);
+        shortcutsTitleRect.anchorMax = new Vector2(1, 1);
+        shortcutsTitleRect.pivot = new Vector2(0.5f, 1);
+        shortcutsTitleRect.anchoredPosition = new Vector2(0, -15);
+        shortcutsTitleRect.sizeDelta = new Vector2(-30, 40);
+        
+        Text shortcutsTitleText = shortcutsTitleObj.AddComponent<Text>();
+        shortcutsTitleText.text = "⌨ KEYBOARD SHORTCUTS";
+        shortcutsTitleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        shortcutsTitleText.fontSize = 20;
+        shortcutsTitleText.fontStyle = FontStyle.Bold;
+        shortcutsTitleText.color = new Color(0.7f, 0.85f, 1f, 0.95f);
+        shortcutsTitleText.alignment = TextAnchor.MiddleCenter;
+        
+        // Shortcuts content
+        GameObject shortcutsContentObj = new GameObject("Content");
+        shortcutsContentObj.transform.SetParent(shortcutsPanel.transform, false);
+        RectTransform shortcutsContentRect = shortcutsContentObj.AddComponent<RectTransform>();
+        shortcutsContentRect.anchorMin = new Vector2(0, 0);
+        shortcutsContentRect.anchorMax = new Vector2(1, 1);
+        shortcutsContentRect.offsetMin = new Vector2(20, 50);
+        shortcutsContentRect.offsetMax = new Vector2(-20, -60);
+        
+        Text shortcutsText = shortcutsContentObj.AddComponent<Text>();
+        shortcutsText.text = "🎮 CAMERA CONTROLS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                            "WASD / ZQSD ........... Move Camera\n" +
+                            "Shift ........................... Sprint Mode\n" +
+                            "Right Click + Drag ... Rotate View\n" +
+                            "Scroll Wheel ............. Zoom In/Out\n\n" +
+                            "🎨 UI CONTROLS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                            "Enter ......................... Toggle UI Panel\n" +
+                            "F1 .............................. Show/Hide This Help\n" +
+                            "F2 .............................. Toggle Performance Stats\n" +
+                            "Esc ............................. Close Dialogs\n\n" +
+                            "✨ QUICK TIPS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                            "• Click section headers to collapse/expand\n" +
+                            "• Color swatches give instant color changes\n" +
+                            "• All sliders update in real-time\n" +
+                            "• Right panel scrolls for more controls";
+        shortcutsText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        shortcutsText.fontSize = 12;
+        shortcutsText.color = new Color(0.65f, 0.8f, 0.95f, 0.9f);
+        shortcutsText.alignment = TextAnchor.UpperLeft;
+        shortcutsText.lineSpacing = 1.3f;
+        
+        // Close button for shortcuts panel
+        Button closeShortcutsButton = CreateModernButton(shortcutsPanel.transform, "CloseButton", new Vector2(0, -10), new Vector2(100, 35), "✕ CLOSE");
+        RectTransform closeShortcutsRect = closeShortcutsButton.GetComponent<RectTransform>();
+        closeShortcutsRect.anchorMin = new Vector2(0.5f, 0);
+        closeShortcutsRect.anchorMax = new Vector2(0.5f, 0);
+        closeShortcutsRect.pivot = new Vector2(0.5f, 0);
+        
+        closeShortcutsButton.onClick.AddListener(() => {
+            shortcutsPanel.SetActive(false);
+        });
+        
+        // Initially hide shortcuts panel
+        shortcutsPanel.SetActive(false);
+        
+        // Store references for runtime access
+        this.gameObject.AddComponent<PerformanceMonitor>().Initialize(statusText);
+        this.gameObject.AddComponent<ShortcutsManager>().Initialize(shortcutsPanel, statusPanel);
+        
         #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(this);
         UnityEditor.Selection.activeGameObject = canvasObj;
@@ -665,8 +1443,9 @@ public class SpirographUIManager : MonoBehaviour
         
         Debug.Log("✓ Generated complete UI! Canvas selected in Hierarchy.");
         Debug.Log("✓ HIDE UI BUTTON: Top-right corner (always visible) - Press ENTER to toggle!");
+        Debug.Log("✓ PERFORMANCE STATS: Bottom-right toggle button or F2 key");
+        Debug.Log("✓ KEYBOARD SHORTCUTS: Press F1 to view all controls");
         Debug.Log("✓ You can now customize colors, sizes, and positions.");
-        Debug.Log("✓ Don't forget to assign 4 materials to SpirographRoller for the material buttons!");
         Debug.Log("✓ UI automatically connects to SpirographRoller, RotateParent, and CameraController.");
     }
     
@@ -1159,7 +1938,7 @@ public class SpirographUIManager : MonoBehaviour
         Button button = buttonObj.AddComponent<Button>();
         button.targetGraphic = buttonImage;
         
-        // Setup hover colors
+        // Setup hover colors with enhanced feedback
         ColorBlock colors = button.colors;
         colors.normalColor = new Color(1f, 1f, 1f, 1f);
         colors.highlightedColor = new Color(0.85f, 0.95f, 1f, 1f); // Bright on hover
@@ -1169,6 +1948,10 @@ public class SpirographUIManager : MonoBehaviour
         colors.colorMultiplier = 1.2f;
         colors.fadeDuration = 0.15f;
         button.colors = colors;
+        
+        // Add enhanced button animator for visual feedback
+        ButtonAnimator animator = buttonObj.AddComponent<ButtonAnimator>();
+        animator.button = button;
         
         // Text
         GameObject textObj = new GameObject("Text");
@@ -1191,5 +1974,175 @@ public class SpirographUIManager : MonoBehaviour
         textShadow.effectDistance = new Vector2(1, -1);
         
         return button;
+    }
+}
+
+/// <summary>
+/// Monitors and displays performance metrics in real-time
+/// </summary>
+public class PerformanceMonitor : MonoBehaviour
+{
+    private Text statusText;
+    private float deltaTime = 0.0f;
+    private float updateInterval = 0.5f; // Update twice per second
+    private float timeSinceLastUpdate = 0f;
+    
+    public void Initialize(Text text)
+    {
+        statusText = text;
+    }
+    
+    void Update()
+    {
+        if (statusText == null) return;
+        
+        deltaTime += (Time.unscaledDeltaTime - deltaTime) * 0.1f;
+        timeSinceLastUpdate += Time.unscaledDeltaTime;
+        
+        if (timeSinceLastUpdate >= updateInterval)
+        {
+            timeSinceLastUpdate = 0f;
+            UpdateStats();
+        }
+    }
+    
+    void UpdateStats()
+    {
+        float fps = 1.0f / deltaTime;
+        SpirographRoller roller = FindObjectOfType<SpirographRoller>();
+        CameraController camera = FindObjectOfType<CameraController>();
+        
+        string fpsColor = fps >= 60 ? "✅" : fps >= 30 ? "⚠️" : "❌";
+        string speedValue = roller != null ? roller.speed.ToString("F1") : "--";
+        string effectValue = roller != null ? roller.GetCurrentEffectName() : "--";
+        string cameraMode = camera != null && camera.IsAutoOrbitEnabled() ? "Auto Orbit" : "Manual";
+        
+        statusText.text = $"⚡ SPIROGRAPH PRO\n━━━━━━━━━━━━━━━━\n{fpsColor} FPS: {fps:F0}\n⚙️ Speed: {speedValue}\n🎨 Effect: {effectValue}\n📷 Camera: {cameraMode}";
+    }
+}
+
+/// <summary>
+/// Manages keyboard shortcuts for UI panels
+/// </summary>
+public class ShortcutsManager : MonoBehaviour
+{
+    private GameObject shortcutsPanel;
+    private GameObject statusPanel;
+    
+    public void Initialize(GameObject shortcuts, GameObject status)
+    {
+        shortcutsPanel = shortcuts;
+        statusPanel = status;
+    }
+    
+    void Update()
+    {
+        // F1 - Toggle keyboard shortcuts help
+        if (Input.GetKeyDown(KeyCode.F1))
+        {
+            if (shortcutsPanel != null)
+            {
+                shortcutsPanel.SetActive(!shortcutsPanel.activeSelf);
+                Debug.Log(shortcutsPanel.activeSelf ? "📖 Shortcuts panel shown" : "📖 Shortcuts panel hidden");
+            }
+        }
+        
+        // F2 - Toggle performance stats
+        if (Input.GetKeyDown(KeyCode.F2))
+        {
+            if (statusPanel != null)
+            {
+                statusPanel.SetActive(!statusPanel.activeSelf);
+                Debug.Log(statusPanel.activeSelf ? "📊 Performance stats shown" : "📊 Performance stats hidden");
+            }
+        }
+        
+        // Escape - Close all panels
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (shortcutsPanel != null && shortcutsPanel.activeSelf)
+            {
+                shortcutsPanel.SetActive(false);
+                Debug.Log("📖 Shortcuts panel closed");
+            }
+        }
+    }
+}
+
+/// <summary>
+/// Adds smooth scale animation to buttons on hover and click
+/// Makes the UI feel more responsive and professional
+/// </summary>
+public class ButtonAnimator : MonoBehaviour
+{
+    public Button button;
+    private RectTransform rectTransform;
+    private Vector3 originalScale;
+    private Vector3 targetScale;
+    private bool isHovering = false;
+    private bool isPressed = false;
+    
+    void Start()
+    {
+        rectTransform = GetComponent<RectTransform>();
+        originalScale = rectTransform.localScale;
+        targetScale = originalScale;
+    }
+    
+    void Update()
+    {
+        if (button == null || rectTransform == null) return;
+        
+        // Check if mouse is over button (simple raycast check)
+        bool wasHovering = isHovering;
+        isHovering = UnityEngine.EventSystems.EventSystem.current != null && 
+                    UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject() &&
+                    button.IsInteractable();
+        
+        // Determine target scale based on state
+        if (isPressed)
+        {
+            targetScale = originalScale * 0.95f; // Pressed: slightly smaller
+        }
+        else if (isHovering)
+        {
+            targetScale = originalScale * 1.05f; // Hover: slightly larger
+        }
+        else
+        {
+            targetScale = originalScale; // Normal
+        }
+        
+        // Smooth interpolation to target scale
+        rectTransform.localScale = Vector3.Lerp(rectTransform.localScale, targetScale, Time.unscaledDeltaTime * 12f);
+    }
+    
+    void OnEnable()
+    {
+        if (button != null)
+        {
+            button.onClick.AddListener(OnButtonPressed);
+        }
+    }
+    
+    void OnDisable()
+    {
+        if (button != null)
+        {
+            button.onClick.RemoveListener(OnButtonPressed);
+        }
+    }
+    
+    void OnButtonPressed()
+    {
+        // Quick pulse animation on click
+        StartCoroutine(PulseAnimation());
+    }
+    
+    System.Collections.IEnumerator PulseAnimation()
+    {
+        isPressed = true;
+        yield return new WaitForSecondsRealtime(0.1f);
+        isPressed = false;
     }
 }
