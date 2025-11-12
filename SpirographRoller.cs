@@ -944,11 +944,22 @@ public class SpirographRoller : MonoBehaviour
         }
     }
     
-    void TogglePause()
+    public void TogglePause()
     {
         isPaused = !isPaused;
         if (pauseButtonText != null)
             pauseButtonText.text = isPaused ? "Resume" : "Pause";
+        Debug.Log(isPaused ? "⏸ PAUSED" : "▶ PLAYING");
+    }
+    
+    public bool IsPaused()
+    {
+        return isPaused;
+    }
+    
+    public void ResetPath()
+    {
+        ResetSpirograph();
     }
     
     void ResetSpirograph()
@@ -983,6 +994,8 @@ public class SpirographRoller : MonoBehaviour
             if (pauseButtonText != null)
                 pauseButtonText.text = "Pause";
         }
+        
+        Debug.Log("↻ Path reset!");
     }
     
     void RecalculatePath()
@@ -1001,6 +1014,11 @@ public class SpirographRoller : MonoBehaviour
             totalLength += Vector3.Distance(staticPathCache[staticPathCache.Count-1], staticPathCache[0]);
         
         Debug.Log("Path recalculated. New length: " + totalLength);
+    }
+    
+    public void ToggleVisibility()
+    {
+        ToggleVisuals();
     }
     
     void ToggleVisuals()
@@ -1026,6 +1044,16 @@ public class SpirographRoller : MonoBehaviour
         }
         
         Debug.Log("Visual Object: " + (visualsVisible ? "VISIBLE" : "HIDDEN"));
+    }
+    
+    public bool AreVisualsVisible()
+    {
+        return visualsVisible;
+    }
+    
+    public string GetCurrentEffectName()
+    {
+        return lineEffectMode.ToString();
     }
     
     // ========== PERFORMANCE OPTIMIZATIONS ==========
