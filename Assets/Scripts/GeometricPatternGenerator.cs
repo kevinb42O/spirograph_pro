@@ -79,7 +79,8 @@ public class GeometricPatternGenerator : MonoBehaviour
         WuTangLogo,         // Wu-Tang Clan iconic W logo - Protect Ya Neck!
         MiddleFinger,       // The universal gesture 🖕
         CannabisLeaf,       // Perfect cannabis leaf with stem and all details 🌿
-        CountIQ             // COUNT IQ in the coolest font imaginable! 🔥
+        CountIQ,            // COUNT IQ in the coolest font imaginable! 🔥
+        GalacticNexus       // 🌌 ULTIMATE SHOWCASE - Sacred geometry meets fractal complexity! 🔮
     }
 
     private void Start()
@@ -188,6 +189,9 @@ public class GeometricPatternGenerator : MonoBehaviour
                 break;
             case ShapeType.CountIQ:
                 GenerateCountIQ();
+                break;
+            case ShapeType.GalacticNexus:
+                GenerateGalacticNexus();
                 break;
         }
     }
@@ -2202,5 +2206,68 @@ public class GeometricPatternGenerator : MonoBehaviour
         }, ref pointIndex, scale, 30);
         
         Debug.Log($"🔥 COUNT IQ generated with {pointIndex} points in the COOLEST FONT EVER! 🔥");
+    }
+
+    private void GenerateGalacticNexus()
+    {
+        // 🌌 GALACTIC NEXUS - THE ULTIMATE CONTINUOUS PATTERN! 🌌
+        // ONE continuous line that creates an epic multi-layered mandala!
+        // Perfect for agent tracing - no jumps, just pure flowing beauty
+        
+        float scale = radius;
+        int pointIndex = 0;
+        
+        // Golden ratio for natural beauty
+        float phi = (1f + Mathf.Sqrt(5f)) / 2f; // ≈ 1.618
+        
+        // === SINGLE CONTINUOUS PATH creating multiple visual layers ===
+        
+        for (int i = 0; i < numberOfPoints; i++)
+        {
+            float t = (i / (float)numberOfPoints) * 2f * Mathf.PI * frequencyA;
+            
+            // Base radius with golden ratio modulation
+            float baseRadius = scale * (1f + 0.3f * Mathf.Sin(t / phi));
+            
+            // Layer 1: Outer flower petals (12 petals)
+            float petalMod = 0.4f * Mathf.Sin(12f * t);
+            
+            // Layer 2: Rose curve creating inner spirals
+            float roseMod = 0.3f * Mathf.Abs(Mathf.Cos(frequencyB * t));
+            
+            // Layer 3: Harmonic rings (Fibonacci frequency)
+            float ringMod = 0.2f * Mathf.Sin(8f * t) * Mathf.Cos(5f * t);
+            
+            // Layer 4: Sacred geometry modulation (using phi)
+            float sacredMod = 0.15f * Mathf.Cos(t * phi * 3f);
+            
+            // Combine all layers into one beautiful radius
+            float r = baseRadius * (1f + petalMod + roseMod + ringMod + sacredMod) * amplitude;
+            
+            // Add spiral component for dynamic flow
+            r += scale * 0.1f * (t / (2f * Mathf.PI * frequencyA));
+            
+            // Calculate position
+            float x = r * Mathf.Cos(t);
+            float y = r * Mathf.Sin(t);
+            
+            // 3D component: Create wave that follows the pattern
+            float z = 0f;
+            if (generate3D)
+            {
+                // Multi-frequency 3D wave
+                z = heightAmplitude * (
+                    Mathf.Sin(t * heightFrequency + phase) * 0.6f +
+                    Mathf.Cos(t * heightFrequency * 0.5f) * 0.4f
+                );
+            }
+            
+            Vector3 position = new Vector3(x, y, z);
+            CreatePoint(position, pointIndex++);
+        }
+        
+        Debug.Log($"🌌✨ GALACTIC NEXUS: {pointIndex} points in ONE continuous flowing path! ✨🌌");
+        Debug.Log($"12 petal mandala + rose spirals + harmonic rings + golden ratio beauty!");
+        Debug.Log($"Perfect for agent tracing - watch the magic unfold! 🔮");
     }
 }

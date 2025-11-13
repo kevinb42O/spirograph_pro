@@ -1,8 +1,6 @@
 SPIROGRAPH UI SETUP INSTRUCTIONS
 =================================
 
-📖 IMPORTANT: For the complete guide with all features, see README_COMPLETE_UI_GUIDE.md
-
 HOW TO GENERATE THE UI:
 1. Create an empty GameObject in your scene (GameObject > Create Empty)
 2. Name it "UIManager"
@@ -12,8 +10,6 @@ HOW TO GENERATE THE UI:
    - SpirographCanvas in the Hierarchy
    - ControlPanel with all sliders and buttons
    - EventSystem for input handling
-   - Performance monitor (F2 to toggle)
-   - Keyboard shortcuts panel (F1 to toggle)
 
 WHAT GETS CREATED:
 - Speed Slider (0.1 to 200)
