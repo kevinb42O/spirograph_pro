@@ -123,25 +123,65 @@ public class SpirographRoller : MonoBehaviour
     
     void Start()
     {
+        // CRITICAL: Validate path points exist
         if (pathPoints == null || pathPoints.Length == 0)
         {
-            Debug.LogError("SpirographRoller: No path points assigned!");
+            Debug.LogError("SpirographRoller: No path points assigned! Disabling component.");
+            enabled = false;
             return;
         }
         
         // Cache the path in world space at initialization
         // This creates a static reference frame independent of parent rotation
-        CacheStaticPath();
+        try
+        {
+            CacheStaticPath();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"SpirographRoller: Error caching path: {e.Message}");
+            enabled = false;
+            return;
+        }
+        
+        // Validate cache was successful
+        if (staticPathCache == null || staticPathCache.Count == 0)
+        {
+            Debug.LogError("SpirographRoller: Path cache is empty after caching! Disabling component.");
+            enabled = false;
+            return;
+        }
         
         // Calculate initial total length from cached positions
         totalLength = 0;
         for (int i = 1; i < staticPathCache.Count; i++)
         {
-            totalLength += Vector3.Distance(staticPathCache[i-1], staticPathCache[i]);
+            float segmentLength = Vector3.Distance(staticPathCache[i-1], staticPathCache[i]);
+            // Validate segment length
+            if (float.IsNaN(segmentLength) || float.IsInfinity(segmentLength))
+            {
+                Debug.LogWarning($"SpirographRoller: Invalid segment length at index {i}, skipping");
+                continue;
+            }
+            totalLength += segmentLength;
         }
         // Add distance from last point back to first (closed loop)
         if (staticPathCache.Count > 0)
-            totalLength += Vector3.Distance(staticPathCache[staticPathCache.Count-1], staticPathCache[0]);
+        {
+            float closingLength = Vector3.Distance(staticPathCache[staticPathCache.Count-1], staticPathCache[0]);
+            if (!float.IsNaN(closingLength) && !float.IsInfinity(closingLength))
+            {
+                totalLength += closingLength;
+            }
+        }
+        
+        // Validate total length
+        if (totalLength <= 0f || float.IsNaN(totalLength) || float.IsInfinity(totalLength))
+        {
+            Debug.LogError($"SpirographRoller: Invalid total path length: {totalLength}. Disabling component.");
+            enabled = false;
+            return;
+        }
         
         radius = GetComponent<Renderer>().bounds.extents.x;
         baseRotorRadius = radius; // Store the base size for scaling calculations
@@ -216,18 +256,51 @@ public class SpirographRoller : MonoBehaviour
     {
         if (isPaused || cycle >= cycles) return;
         
+        // CRITICAL: Validate totalLength to prevent division by zero
+        if (totalLength <= 0f || float.IsNaN(totalLength) || float.IsInfinity(totalLength))
+        {
+            Debug.LogError("SpirographRoller: Invalid totalLength in Update, disabling");
+            enabled = false;
+            return;
+        }
+        
+        // Validate staticPathCache
+        if (staticPathCache == null || staticPathCache.Count == 0)
+        {
+            Debug.LogError("SpirographRoller: Path cache is null or empty in Update, disabling");
+            enabled = false;
+            return;
+        }
+        
         // Calculate how far we need to travel this frame
         float frameDistance = speed * Time.deltaTime;
+        
+        // Validate frameDistance
+        if (float.IsNaN(frameDistance) || float.IsInfinity(frameDistance))
+        {
+            Debug.LogWarning("SpirographRoller: Invalid frameDistance calculated, skipping frame");
+            return;
+        }
+        
         float startDistance = distance;
         
         // Move the distance for this frame
         distance += frameDistance;
         
-        // Handle cycle completion
+        // Handle cycle completion with safe modulo
         if (distance >= totalLength) 
         { 
             cycle++; 
-            distance = distance % totalLength; // Wrap around smoothly
+            // Safe modulo operation
+            if (totalLength > 0f)
+            {
+                distance = distance % totalLength; // Wrap around smoothly
+            }
+            else
+            {
+                distance = 0f;
+            }
+            
             if (cycle >= cycles)
             {
                 distance = 0;
@@ -402,35 +475,121 @@ public class SpirographRoller : MonoBehaviour
     void CacheStaticPath()
     {
         // Create a static snapshot of the path in world space
+        // CRITICAL: Initialize cache if null
+        if (staticPathCache == null)
+        {
+            staticPathCache = new List<Vector3>();
+        }
+        
         staticPathCache.Clear();
+        
+        // CRITICAL: Validate pathPoints
+        if (pathPoints == null || pathPoints.Length == 0)
+        {
+            Debug.LogError("SpirographRoller: Cannot cache path - pathPoints is null or empty");
+            return;
+        }
+        
+        int validPoints = 0;
         foreach (Transform point in pathPoints)
         {
             if (point != null)
+            {
                 staticPathCache.Add(point.position);
+                validPoints++;
+            }
+            else
+            {
+                Debug.LogWarning("SpirographRoller: Null path point encountered during caching");
+            }
+        }
+        
+        if (validPoints == 0)
+        {
+            Debug.LogError("SpirographRoller: No valid path points found during caching");
+        }
+        else
+        {
+            Debug.Log($"SpirographRoller: Cached {validPoints} path points");
         }
     }
     
     Vector3 GetPoint(float d)
     {
+        // CRITICAL: Validate distance parameter
+        if (float.IsNaN(d) || float.IsInfinity(d))
+        {
+            Debug.LogWarning($"SpirographRoller: Invalid distance parameter: {d}");
+            d = 0f;
+        }
+        
         if (useWorldSpacePath)
         {
             // Use the cached static path (unaffected by parent rotation)
             // This is the mathematically correct approach for spirographs
+            
+            // CRITICAL: Validate cache
+            if (staticPathCache == null || staticPathCache.Count == 0)
+            {
+                Debug.LogWarning("SpirographRoller: Path cache is null or empty in GetPoint");
+                return Vector3.zero;
+            }
+            
             float a = 0;
             for (int i = 1; i < staticPathCache.Count; i++)
             {
+                // CRITICAL: Validate array indices
+                if (i < 0 || i >= staticPathCache.Count || i - 1 < 0)
+                {
+                    Debug.LogError($"SpirographRoller: Invalid index in GetPoint loop: {i}");
+                    continue;
+                }
+                
                 float l = Vector3.Distance(staticPathCache[i-1], staticPathCache[i]);
-                if (a + l >= d) 
-                    return Vector3.Lerp(staticPathCache[i-1], staticPathCache[i], (d - a) / l);
+                
+                // Validate segment length
+                if (float.IsNaN(l) || float.IsInfinity(l) || l < 0f)
+                {
+                    Debug.LogWarning($"SpirographRoller: Invalid segment length at {i}: {l}");
+                    continue;
+                }
+                
+                if (a + l >= d)
+                {
+                    // CRITICAL: Prevent division by zero
+                    if (l > 0f)
+                    {
+                        float t = (d - a) / l;
+                        t = Mathf.Clamp01(t); // Safety clamp
+                        return Vector3.Lerp(staticPathCache[i-1], staticPathCache[i], t);
+                    }
+                    else
+                    {
+                        return staticPathCache[i-1];
+                    }
+                }
                 a += l;
             }
             
             // Handle wrap-around from last to first point
             if (staticPathCache.Count > 0)
             {
-                float l = Vector3.Distance(staticPathCache[staticPathCache.Count-1], staticPathCache[0]);
-                if (a + l >= d)
-                    return Vector3.Lerp(staticPathCache[staticPathCache.Count-1], staticPathCache[0], (d - a) / l);
+                int lastIndex = staticPathCache.Count - 1;
+                float l = Vector3.Distance(staticPathCache[lastIndex], staticPathCache[0]);
+                
+                if (!float.IsNaN(l) && !float.IsInfinity(l) && l >= 0f && a + l >= d)
+                {
+                    if (l > 0f)
+                    {
+                        float t = (d - a) / l;
+                        t = Mathf.Clamp01(t);
+                        return Vector3.Lerp(staticPathCache[lastIndex], staticPathCache[0], t);
+                    }
+                    else
+                    {
+                        return staticPathCache[lastIndex];
+                    }
+                }
             }
             
             return staticPathCache.Count > 0 ? staticPathCache[0] : Vector3.zero;
@@ -438,15 +597,44 @@ public class SpirographRoller : MonoBehaviour
         else
         {
             // Use current Transform positions (dynamically updated by parent rotation)
-            // This creates the harsh lines when parent rotates
+            // CRITICAL: Validate pathPoints
+            if (pathPoints == null || pathPoints.Length == 0)
+            {
+                Debug.LogWarning("SpirographRoller: pathPoints is null or empty");
+                return Vector3.zero;
+            }
+            
             float a = 0;
             for (int i = 1; i < pathPoints.Length; i++)
             {
-                if (pathPoints[i] == null || pathPoints[i-1] == null) continue;
+                // CRITICAL: Null check transforms
+                if (pathPoints[i] == null || pathPoints[i-1] == null)
+                {
+                    Debug.LogWarning($"SpirographRoller: Null path point at index {i}");
+                    continue;
+                }
                 
                 float l = Vector3.Distance(pathPoints[i-1].position, pathPoints[i].position);
-                if (a + l >= d) 
-                    return Vector3.Lerp(pathPoints[i-1].position, pathPoints[i].position, (d - a) / l);
+                
+                if (float.IsNaN(l) || float.IsInfinity(l) || l < 0f)
+                {
+                    Debug.LogWarning($"SpirographRoller: Invalid dynamic segment length at {i}: {l}");
+                    continue;
+                }
+                
+                if (a + l >= d)
+                {
+                    if (l > 0f)
+                    {
+                        float t = (d - a) / l;
+                        t = Mathf.Clamp01(t);
+                        return Vector3.Lerp(pathPoints[i-1].position, pathPoints[i].position, t);
+                    }
+                    else
+                    {
+                        return pathPoints[i-1].position;
+                    }
+                }
                 a += l;
             }
             
@@ -454,8 +642,19 @@ public class SpirographRoller : MonoBehaviour
             if (pathPoints.Length > 0 && pathPoints[0] != null && pathPoints[pathPoints.Length-1] != null)
             {
                 float l = Vector3.Distance(pathPoints[pathPoints.Length-1].position, pathPoints[0].position);
-                if (a + l >= d)
-                    return Vector3.Lerp(pathPoints[pathPoints.Length-1].position, pathPoints[0].position, (d - a) / l);
+                if (!float.IsNaN(l) && !float.IsInfinity(l) && l >= 0f && a + l >= d)
+                {
+                    if (l > 0f)
+                    {
+                        float t = (d - a) / l;
+                        t = Mathf.Clamp01(t);
+                        return Vector3.Lerp(pathPoints[pathPoints.Length-1].position, pathPoints[0].position, t);
+                    }
+                    else
+                    {
+                        return pathPoints[pathPoints.Length-1].position;
+                    }
+                }
             }
             
             return pathPoints.Length > 0 && pathPoints[0] != null ? pathPoints[0].position : Vector3.zero;

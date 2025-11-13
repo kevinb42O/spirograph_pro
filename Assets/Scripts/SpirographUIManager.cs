@@ -112,10 +112,167 @@ public class SpirographUIManager : MonoBehaviour
             UnityEditor.EditorApplication.delayCall += () => {
                 if (this != null)
                 {
+                    // Clean up any existing UI before generating new one
+                    CleanupExistingUI();
                     GenerateCompleteUI();
                 }
             };
 #endif
+        }
+    }
+    
+    /// <summary>
+    /// CRITICAL: Clean up existing UI before regeneration to prevent orphaned references
+    /// This fixes NullReferenceException and SerializedObjectNotCreatableException errors
+    /// </summary>
+    void CleanupExistingUI()
+    {
+        try
+        {
+            Debug.Log("[UIManager] Cleaning up existing UI before regeneration...");
+            
+            // Clear all UI element references first to prevent access during destruction
+            speedSlider = null;
+            speedText = null;
+            cyclesSlider = null;
+            rotationSpeedSlider = null;
+            objectRotationSpeedSlider = null;
+            penDistanceSlider = null;
+            lineWidthSlider = null;
+            lineBrightnessSlider = null;
+            pauseButton = null;
+            resetButton = null;
+            lookAtButton = null;
+            smoothFollowButton = null;
+            autoOrbitButton = null;
+            toggleVisualsButton = null;
+            lineEffectsButton = null;
+            hideUIButton = null;
+            hueSlider = null;
+            saturationSlider = null;
+            valueSlider = null;
+            colorPreview = null;
+            colorPresetButtons = null;
+            motionSectionToggle = null;
+            visualsSectionToggle = null;
+            colorSectionToggle = null;
+            environmentSectionToggle = null;
+            cameraSectionToggle = null;
+            motionSection = null;
+            visualsSection = null;
+            colorSection = null;
+            environmentSection = null;
+            cameraSection = null;
+            skyboxDropdown = null;
+            patternDropdown = null;
+            generatePatternButton = null;
+            clearPatternsButton = null;
+            multiAgentToggle = null;
+            agentCountSlider = null;
+            agentCountText = null;
+            agentColorModeDropdown = null;
+            agentSpawnModeDropdown = null;
+            controlPanel = null;
+            panelTitleText = null;
+            controlPanelScrollRect = null;
+            contextBanner = null;
+            contextBannerText = null;
+            contextBannerBackground = null;
+            contextBannerGroup = null;
+            contextBannerAccent = null;
+            
+            // Find and destroy the canvas if it exists
+            GameObject existingCanvas = GameObject.Find("SpirographCanvas");
+            if (existingCanvas != null)
+            {
+                Debug.Log("[UIManager] Destroying existing SpirographCanvas...");
+#if UNITY_EDITOR
+                // Use DestroyImmediate in editor mode for instant cleanup
+                if (!Application.isPlaying)
+                {
+                    DestroyImmediate(existingCanvas);
+                }
+                else
+                {
+                    Destroy(existingCanvas);
+                }
+#else
+                Destroy(existingCanvas);
+#endif
+            }
+            
+            // Find and clean up any orphaned context banners
+            GameObject existingBanner = GameObject.Find("ContextBanner");
+            if (existingBanner != null)
+            {
+                Debug.Log("[UIManager] Destroying existing ContextBanner...");
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                {
+                    DestroyImmediate(existingBanner);
+                }
+                else
+                {
+                    Destroy(existingBanner);
+                }
+#else
+                Destroy(existingBanner);
+#endif
+            }
+            
+            Debug.Log("[UIManager] ✓ UI cleanup complete");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[UIManager] Error during UI cleanup: {e.Message}\n{e.StackTrace}");
+        }
+    }
+    
+    /// <summary>
+    /// OnDisable - Clean up event subscriptions to prevent memory leaks
+    /// </summary>
+    void OnDisable()
+    {
+        try
+        {
+            // Unsubscribe from multi-agent manager events
+            if (multiAgentManager != null)
+            {
+                multiAgentManager.OnAgentSelected -= OnAgentSelectedForControl;
+            }
+            
+            // Unsubscribe from pattern spawner events
+            PatternSpawner spawner = FindFirstObjectByType<PatternSpawner>();
+            if (spawner != null)
+            {
+                spawner.OnActiveRotorChanged -= OnActiveRotorChanged;
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[UIManager] Error during OnDisable cleanup: {e.Message}");
+        }
+    }
+    
+    /// <summary>
+    /// OnDestroy - Final cleanup to prevent orphaned references
+    /// </summary>
+    void OnDestroy()
+    {
+        try
+        {
+            // Clear all references to prevent accessing destroyed objects
+            speedSlider = null;
+            cyclesSlider = null;
+            rotationSpeedSlider = null;
+            pauseButton = null;
+            controlPanel = null;
+            selectedAgent = null;
+            activeRoller = null;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[UIManager] Error during OnDestroy: {e.Message}");
         }
     }
 
@@ -240,10 +397,22 @@ public class SpirographUIManager : MonoBehaviour
     /// <summary>
     /// Bind ALL UI sliders, buttons, and controls to the selected agent
     /// This makes the entire main UI control THIS specific agent
+    /// CRITICAL: All operations wrapped in null checks to prevent errors
     /// </summary>
     void BindUIToSelectedAgent(PathAgent agent)
     {
-        if (agent == null) return;
+        if (agent == null)
+        {
+            Debug.LogWarning("[UIManager] Cannot bind UI - agent is null");
+            return;
+        }
+        
+        // Validate agent GameObject still exists
+        if (agent.gameObject == null)
+        {
+            Debug.LogWarning("[UIManager] Cannot bind UI - agent GameObject is destroyed");
+            return;
+        }
 
         // ========== SPEED SLIDER ==========
         if (speedSlider != null)

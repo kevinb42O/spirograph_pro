@@ -57,9 +57,30 @@ public class SharedPathState : MonoBehaviour
     /// <summary>
     /// Get a color for an agent based on the color mode and agent index
     /// Performance: Caches rainbow colors to avoid repeated HSV-to-RGB conversions
+    /// CRITICAL: Comprehensive validation to prevent null/bounds errors
     /// </summary>
     public Color GetAgentColor(MultiAgentManager.AgentColorMode colorMode, int agentIndex, int totalAgents)
     {
+        // Validate inputs
+        if (agentIndex < 0)
+        {
+            Debug.LogWarning($"[SharedPathState] Invalid agentIndex: {agentIndex}, using 0");
+            agentIndex = 0;
+        }
+        
+        if (totalAgents <= 0)
+        {
+            Debug.LogWarning($"[SharedPathState] Invalid totalAgents: {totalAgents}, using 1");
+            totalAgents = 1;
+        }
+        
+        // Clamp agentIndex to valid range
+        if (agentIndex >= totalAgents)
+        {
+            Debug.LogWarning($"[SharedPathState] agentIndex {agentIndex} >= totalAgents {totalAgents}, clamping");
+            agentIndex = totalAgents - 1;
+        }
+        
         switch (colorMode)
         {
             case MultiAgentManager.AgentColorMode.Master:
@@ -69,14 +90,32 @@ public class SharedPathState : MonoBehaviour
                 // Performance: Use cached rainbow colors to avoid expensive HSV-to-RGB conversions
                 if (cachedRainbowColors == null || cachedRainbowColors.Length != totalAgents)
                 {
-                    cachedRainbowColors = new Color[totalAgents];
-                    for (int i = 0; i < totalAgents; i++)
+                    try
                     {
-                        float hue = (float)i / totalAgents;
-                        cachedRainbowColors[i] = Color.HSVToRGB(hue, 0.8f, 1f);
+                        cachedRainbowColors = new Color[totalAgents];
+                        for (int i = 0; i < totalAgents; i++)
+                        {
+                            float hue = totalAgents > 1 ? (float)i / totalAgents : 0.5f;
+                            cachedRainbowColors[i] = Color.HSVToRGB(hue, 0.8f, 1f);
+                        }
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogError($"[SharedPathState] Error caching rainbow colors: {e.Message}");
+                        return masterLineColor; // Fallback
                     }
                 }
-                return cachedRainbowColors[agentIndex];
+                
+                // CRITICAL: Validate array access
+                if (agentIndex >= 0 && agentIndex < cachedRainbowColors.Length)
+                {
+                    return cachedRainbowColors[agentIndex];
+                }
+                else
+                {
+                    Debug.LogWarning($"[SharedPathState] Index {agentIndex} out of bounds for cached colors array (length {cachedRainbowColors.Length})");
+                    return masterLineColor;
+                }
                 
             case MultiAgentManager.AgentColorMode.Individual:
                 // Each agent gets a distinct color from a predefined palette
