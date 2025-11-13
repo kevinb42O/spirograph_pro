@@ -1580,7 +1580,121 @@ public class SpirographUIManager : MonoBehaviour
         autoOrbitButton = CreateModernButton(cameraSection.transform, "AutoOrbitButton", new Vector2(0, cameraYPos), new Vector2(290, 38), "🎬 AUTO ORBIT");
         Image orbitImg = autoOrbitButton.GetComponent<Image>();
         orbitImg.color = new Color(0.15f, 0.05f, 0.25f, 0.8f);
-        cameraYPos -= 55;
+        cameraYPos -= 50;
+        
+        // ============================================================
+        // CINEMATIC PRESETS
+        // ============================================================
+        
+        // Presets Label
+        GameObject presetsLabelObj = new GameObject("PresetsLabel");
+        presetsLabelObj.transform.SetParent(cameraSection.transform, false);
+        RectTransform presetsLabelRect = presetsLabelObj.AddComponent<RectTransform>();
+        presetsLabelRect.anchorMin = new Vector2(0, 1);
+        presetsLabelRect.anchorMax = new Vector2(0, 1);
+        presetsLabelRect.pivot = new Vector2(0, 1);
+        presetsLabelRect.anchoredPosition = new Vector2(0, cameraYPos);
+        presetsLabelRect.sizeDelta = new Vector2(290, 20);
+        Text presetsLabel = presetsLabelObj.AddComponent<Text>();
+        presetsLabel.text = "Cinematic Presets:";
+        presetsLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        presetsLabel.fontSize = 12;
+        presetsLabel.fontStyle = FontStyle.Bold;
+        presetsLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
+        presetsLabel.alignment = TextAnchor.MiddleLeft;
+        cameraYPos -= 28;
+        
+        // Camera Presets Dropdown
+        Dropdown presetsDropdown = CreateCompactDropdown(cameraSection.transform, "CameraPresetsDropdown", 
+            new Vector2(0, cameraYPos), CameraPresets.GetPresetNames());
+        cameraYPos -= 40;
+        
+        // Play Preset Button
+        Button playPresetButton = CreateModernButton(cameraSection.transform, "PlayPresetButton", new Vector2(0, cameraYPos), new Vector2(140, 35), "▶ PLAY");
+        Image playPresetImg = playPresetButton.GetComponent<Image>();
+        playPresetImg.color = new Color(0.05f, 0.20f, 0.15f, 0.8f); // Green
+        
+        // Stop Preset Button
+        Button stopPresetButton = CreateModernButton(cameraSection.transform, "StopPresetButton", new Vector2(150, cameraYPos), new Vector2(140, 35), "⏹ STOP");
+        Image stopPresetImg = stopPresetButton.GetComponent<Image>();
+        stopPresetImg.color = new Color(0.20f, 0.05f, 0.05f, 0.8f); // Red
+        cameraYPos -= 45;
+        
+        // ============================================================
+        // CAMERA PATH WAYPOINTS
+        // ============================================================
+        
+        // Waypoints Label
+        GameObject waypointsLabelObj = new GameObject("WaypointsLabel");
+        waypointsLabelObj.transform.SetParent(cameraSection.transform, false);
+        RectTransform waypointsLabelRect = waypointsLabelObj.AddComponent<RectTransform>();
+        waypointsLabelRect.anchorMin = new Vector2(0, 1);
+        waypointsLabelRect.anchorMax = new Vector2(0, 1);
+        waypointsLabelRect.pivot = new Vector2(0, 1);
+        waypointsLabelRect.anchoredPosition = new Vector2(0, cameraYPos);
+        waypointsLabelRect.sizeDelta = new Vector2(290, 20);
+        Text waypointsLabel = waypointsLabelObj.AddComponent<Text>();
+        waypointsLabel.text = "Camera Path:";
+        waypointsLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        waypointsLabel.fontSize = 12;
+        waypointsLabel.fontStyle = FontStyle.Bold;
+        waypointsLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
+        waypointsLabel.alignment = TextAnchor.MiddleLeft;
+        cameraYPos -= 28;
+        
+        // Add Waypoint Button
+        Button addWaypointButton = CreateModernButton(cameraSection.transform, "AddWaypointButton", new Vector2(0, cameraYPos), new Vector2(140, 35), "+ WAYPOINT");
+        
+        // Clear Waypoints Button
+        Button clearWaypointsButton = CreateModernButton(cameraSection.transform, "ClearWaypointsButton", new Vector2(150, cameraYPos), new Vector2(140, 35), "✖ CLEAR");
+        cameraYPos -= 42;
+        
+        // Play Path Button
+        Button playPathButton = CreateModernButton(cameraSection.transform, "PlayPathButton", new Vector2(0, cameraYPos), new Vector2(140, 35), "▶ PLAY PATH");
+        Image playPathImg = playPathButton.GetComponent<Image>();
+        playPathImg.color = new Color(0.05f, 0.15f, 0.25f, 0.8f); // Blue
+        
+        // Stop Path Button
+        Button stopPathButton = CreateModernButton(cameraSection.transform, "StopPathButton", new Vector2(150, cameraYPos), new Vector2(140, 35), "⏹ STOP PATH");
+        cameraYPos -= 45;
+        
+        // ============================================================
+        // ADVANCED CAMERA FEATURES
+        // ============================================================
+        
+        // Camera Features Label
+        GameObject featuresLabelObj = new GameObject("FeaturesLabel");
+        featuresLabelObj.transform.SetParent(cameraSection.transform, false);
+        RectTransform featuresLabelRect = featuresLabelObj.AddComponent<RectTransform>();
+        featuresLabelRect.anchorMin = new Vector2(0, 1);
+        featuresLabelRect.anchorMax = new Vector2(0, 1);
+        featuresLabelRect.pivot = new Vector2(0, 1);
+        featuresLabelRect.anchoredPosition = new Vector2(0, cameraYPos);
+        featuresLabelRect.sizeDelta = new Vector2(290, 20);
+        Text featuresLabel = featuresLabelObj.AddComponent<Text>();
+        featuresLabel.text = "Advanced Features:";
+        featuresLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        featuresLabel.fontSize = 12;
+        featuresLabel.fontStyle = FontStyle.Bold;
+        featuresLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
+        featuresLabel.alignment = TextAnchor.MiddleLeft;
+        cameraYPos -= 28;
+        
+        // Recording Mode Toggle
+        Toggle recordingToggle = CreateModernToggle(cameraSection.transform, "RecordingToggle", new Vector2(0, cameraYPos), "🎥 Recording Mode");
+        cameraYPos -= 40;
+        
+        // Camera Shake Toggle
+        Toggle shakeToggle = CreateModernToggle(cameraSection.transform, "ShakeToggle", new Vector2(0, cameraYPos), "📳 Camera Shake");
+        cameraYPos -= 40;
+        
+        // Auto-Framing Toggle
+        Toggle autoFramingToggle = CreateModernToggle(cameraSection.transform, "AutoFramingToggle", new Vector2(0, cameraYPos), "🎯 Auto-Framing");
+        cameraYPos -= 40;
+        
+        // Multi-Agent Focus Toggle
+        Toggle multiAgentFocusToggle = CreateModernToggle(cameraSection.transform, "MultiAgentFocusToggle", new Vector2(0, cameraYPos), "👥 Multi-Agent Focus");
+        cameraYPos -= 50;
         
         #if UNITY_EDITOR
         // Force serialization of button references
@@ -1609,6 +1723,94 @@ public class SpirographUIManager : MonoBehaviour
             });
             
             Debug.Log("✓ Camera buttons connected to CameraController!");
+            
+            // ============================================================
+            // CONNECT CINEMATIC PRESETS
+            // ============================================================
+            
+            // Find or create CameraPresets component
+            CameraPresets cameraPresets = cameraController.GetComponent<CameraPresets>();
+            if (cameraPresets == null)
+            {
+                cameraPresets = cameraController.gameObject.AddComponent<CameraPresets>();
+                Debug.Log("✓ Created CameraPresets component");
+            }
+            
+            // Connect preset dropdown and buttons
+            playPresetButton.onClick.AddListener(() => {
+                int selectedIndex = presetsDropdown.value;
+                cameraPresets.ExecutePreset(selectedIndex);
+                Debug.Log($"🎬 Playing preset: {presetsDropdown.options[selectedIndex].text}");
+            });
+            
+            stopPresetButton.onClick.AddListener(() => {
+                cameraPresets.StopCurrentPreset();
+                Debug.Log("🎬 Stopped current preset");
+            });
+            
+            // ============================================================
+            // CONNECT CAMERA PATH
+            // ============================================================
+            
+            // Find or create CameraPath component
+            CameraPath cameraPath = cameraController.GetComponent<CameraPath>();
+            if (cameraPath == null)
+            {
+                cameraPath = cameraController.gameObject.AddComponent<CameraPath>();
+                Debug.Log("✓ Created CameraPath component");
+            }
+            
+            // Connect waypoint buttons
+            addWaypointButton.onClick.AddListener(() => {
+                cameraPath.AddWaypointAtCurrentPosition();
+                Debug.Log($"📍 Added waypoint (Total: {cameraPath.waypoints.Count})");
+            });
+            
+            clearWaypointsButton.onClick.AddListener(() => {
+                cameraPath.ClearWaypoints();
+                Debug.Log("📍 Cleared all waypoints");
+            });
+            
+            playPathButton.onClick.AddListener(() => {
+                cameraPath.Play();
+                Debug.Log("▶ Playing camera path");
+            });
+            
+            stopPathButton.onClick.AddListener(() => {
+                cameraPath.Stop();
+                Debug.Log("⏹ Stopped camera path");
+            });
+            
+            // ============================================================
+            // CONNECT ADVANCED FEATURES
+            // ============================================================
+            
+            // Recording Mode Toggle
+            recordingToggle.onValueChanged.AddListener((isOn) => {
+                cameraController.recordingMode = isOn;
+                cameraController.ToggleRecordingMode();
+                Debug.Log($"🎥 Recording Mode: {(isOn ? "ON" : "OFF")}");
+            });
+            
+            // Camera Shake Toggle
+            shakeToggle.onValueChanged.AddListener((isOn) => {
+                cameraController.enableIdleShake = isOn;
+                Debug.Log($"📳 Camera Shake: {(isOn ? "ON" : "OFF")}");
+            });
+            
+            // Auto-Framing Toggle
+            autoFramingToggle.onValueChanged.AddListener((isOn) => {
+                cameraController.autoFraming = isOn;
+                Debug.Log($"🎯 Auto-Framing: {(isOn ? "ON" : "OFF")}");
+            });
+            
+            // Multi-Agent Focus Toggle
+            multiAgentFocusToggle.onValueChanged.AddListener((isOn) => {
+                cameraController.focusOnMultipleAgents = isOn;
+                Debug.Log($"👥 Multi-Agent Focus: {(isOn ? "ON" : "OFF")}");
+            });
+            
+            Debug.Log("✓ Advanced camera features connected!");
         }
         else
         {
