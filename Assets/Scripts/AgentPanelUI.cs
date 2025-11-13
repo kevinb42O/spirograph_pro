@@ -49,7 +49,7 @@ public class AgentPanelUI : MonoBehaviour
     public bool enableStunningEffects = true;
     
     [Tooltip("Animation speed multiplier")]
-    public float animationSpeed = 1.2f;
+    public float animationSpeed = UIConstants.AnimationSpeed / 10f; // Slower for panel animations
     
     [Header("References")]
     public MultiAgentManager agentManager; // Auto-assigned by SpirographUIManager
@@ -79,8 +79,8 @@ public class AgentPanelUI : MonoBehaviour
     // Current agent being configured
     private float newAgentSpeed = 1f;
     
-    // Update frequency for stats (10 Hz = every 0.1s)
-    private float updateInterval = 0.1f;
+    // Update frequency for stats using UIConstants
+    private float updateInterval = UIConstants.UIUpdateInterval;
     private float timeSinceLastUpdate = 0f;
     
     /// <summary>
@@ -255,35 +255,35 @@ public class AgentPanelUI : MonoBehaviour
         panelRect.anchoredPosition = new Vector2(-15, 15);
         panelRect.sizeDelta = new Vector2(panelWidth, panelHeight);
         
-        // Panel background - STUNNING GLASSMORPHIC STYLE
+        // Panel background - STUNNING GLASSMORPHIC STYLE using UIConstants
         Image panelBg = panelObj.AddComponent<Image>();
-        panelBg.color = new Color(0.01f, 0.02f, 0.12f, 0.92f); // Deep cosmic blue with high opacity
+        panelBg.color = UIConstants.DarkSpaceGlass;
         
-        // Add multiple outlines for depth effect
+        // Add multiple outlines for depth effect using consistent colors
         Outline panelOutline = panelObj.AddComponent<Outline>();
-        panelOutline.effectColor = new Color(0.4f, 0.7f, 1f, 0.6f); // Bright cyan glow
-        panelOutline.effectDistance = new Vector2(3, -3);
+        panelOutline.effectColor = UIConstants.CyanGlow;
+        panelOutline.effectDistance = UIConstants.OutlineDistanceLarge;
         
-        // Add inner glow
+        // Add inner glow using consistent color
         Shadow panelGlow = panelObj.AddComponent<Shadow>();
-        panelGlow.effectColor = new Color(0.3f, 0.6f, 1f, 0.35f); // Intense blue glow
-        panelGlow.effectDistance = new Vector2(0, 0);
+        panelGlow.effectColor = UIConstants.BlueGlow;
+        panelGlow.effectDistance = UIConstants.GlowDistance;
         
-        // Add pulsing animation component
+        // Add pulsing animation component with consistent settings
         if (enableStunningEffects)
         {
             PanelPulseEffect pulseEffect = panelObj.AddComponent<PanelPulseEffect>();
-            pulseEffect.glowColor = new Color(0.3f, 0.6f, 1f, 0.5f);
-            pulseEffect.pulseSpeed = animationSpeed;
+            pulseEffect.glowColor = UIConstants.BlueGlow;
+            pulseEffect.pulseSpeed = UIConstants.PulseSpeed * animationSpeed;
             
-            // Add enhanced visual effects
+            // Add enhanced visual effects with consistent timing
             EnhancedAgentPanelVisuals enhancedVisuals = panelObj.AddComponent<EnhancedAgentPanelVisuals>();
             enhancedVisuals.animateBackground = true;
             enhancedVisuals.enableBorderGlow = true;
             enhancedVisuals.enableParticles = true;
             enhancedVisuals.enableScaleAnimation = true;
             enhancedVisuals.backgroundAnimationSpeed = animationSpeed * 0.3f;
-            enhancedVisuals.borderGlowSpeed = animationSpeed * 1.5f;
+            enhancedVisuals.borderGlowSpeed = UIConstants.PulseSpeed * animationSpeed * 1.5f;
         }
         
         agentPanel = panelObj;
@@ -301,27 +301,27 @@ public class AgentPanelUI : MonoBehaviour
         Text titleText = titleObj.AddComponent<Text>();
         titleText.text = "✦ AGENT COMMAND CENTER ✦";
         titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        titleText.fontSize = 18;
+        titleText.fontSize = UIConstants.FontSizeTitle;
         titleText.fontStyle = FontStyle.Bold;
-        titleText.color = new Color(0.8f, 0.95f, 1f, 1f); // Brighter, more vibrant
+        titleText.color = UIConstants.BrightWhite;
         titleText.alignment = TextAnchor.MiddleCenter;
         
-        // Multiple shadow layers for depth
+        // Multiple shadow layers for depth using consistent colors
         Shadow titleShadow = titleObj.AddComponent<Shadow>();
-        titleShadow.effectColor = new Color(0.4f, 0.8f, 1f, 0.8f); // Brighter glow
-        titleShadow.effectDistance = new Vector2(0, 0);
+        titleShadow.effectColor = UIConstants.CyanGlow;
+        titleShadow.effectDistance = UIConstants.GlowDistance;
         
         Outline titleOutline = titleObj.AddComponent<Outline>();
-        titleOutline.effectColor = new Color(0.2f, 0.5f, 1f, 0.6f);
-        titleOutline.effectDistance = new Vector2(2, -2);
+        titleOutline.effectColor = UIConstants.BlueGlow;
+        titleOutline.effectDistance = UIConstants.OutlineDistance;
         
-        // Add pulsing text animation
+        // Add pulsing text animation with consistent timing
         if (enableStunningEffects)
         {
             TextPulseEffect textPulse = titleObj.AddComponent<TextPulseEffect>();
             textPulse.minAlpha = 0.8f;
             textPulse.maxAlpha = 1f;
-            textPulse.pulseSpeed = animationSpeed * 0.5f;
+            textPulse.pulseSpeed = UIConstants.PulseSpeed * animationSpeed * 0.5f;
         }
         
         // Global Stats Section
@@ -335,13 +335,13 @@ public class AgentPanelUI : MonoBehaviour
         statsRect.sizeDelta = new Vector2(-20, 60);
         
         Image statsBg = statsObj.AddComponent<Image>();
-        statsBg.color = new Color(0.05f, 0.05f, 0.15f, 0.6f);
+        statsBg.color = UIConstants.SectionBackground;
         
         globalStatsText = statsObj.AddComponent<Text>();
         globalStatsText.text = "Active: 0 | Paused: 0 | Completed: 0\nAvg Progress: 0%\nTotal Distance: 0m";
         globalStatsText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        globalStatsText.fontSize = 10;
-        globalStatsText.color = new Color(0.6f, 0.75f, 0.9f, 0.9f);
+        globalStatsText.fontSize = UIConstants.FontSizeSmall;
+        globalStatsText.color = UIConstants.MutedText;
         globalStatsText.alignment = TextAnchor.UpperLeft;
         
         RectTransform globalStatsTextRect = globalStatsText.GetComponent<RectTransform>();
@@ -363,7 +363,7 @@ public class AgentPanelUI : MonoBehaviour
         listRect.sizeDelta = new Vector2(-20, 350);  // Fixed height for scroll area
         
         Image listBg = listObj.AddComponent<Image>();
-        listBg.color = new Color(0.03f, 0.03f, 0.1f, 0.7f);
+        listBg.color = UIConstants.SectionBackground;
         
         // Add ScrollRect
         agentListScrollRect = listObj.AddComponent<ScrollRect>();
@@ -441,10 +441,10 @@ public class AgentPanelUI : MonoBehaviour
         createButtonRect.anchorMax = new Vector2(1, 0);
         createButtonRect.pivot = new Vector2(0.5f, 0);
         createButtonRect.anchoredPosition = new Vector2(0, 420);
-        createButtonRect.sizeDelta = new Vector2(-20, 50);
+        createButtonRect.sizeDelta = new Vector2(-20, UIConstants.MinTouchTarget);
         
         Image createButtonBg = createButtonObj.AddComponent<Image>();
-        createButtonBg.color = new Color(0.2f, 0.8f, 0.4f, 0.95f);
+        createButtonBg.color = UIConstants.SuccessGreen;
         
         Button createButton = createButtonObj.AddComponent<Button>();
         createButton.targetGraphic = createButtonBg;
@@ -458,14 +458,14 @@ public class AgentPanelUI : MonoBehaviour
             stunningEffect.transitionSpeed = 10f;
         }
         
-        // Add glow
+        // Add glow using consistent styling
         Outline createButtonOutline = createButtonObj.AddComponent<Outline>();
-        createButtonOutline.effectColor = new Color(0.5f, 1f, 0.7f, 0.8f);
-        createButtonOutline.effectDistance = new Vector2(3, -3);
+        createButtonOutline.effectColor = new Color(UIConstants.SuccessGreen.r * 1.5f, UIConstants.SuccessGreen.g * 1.5f, UIConstants.SuccessGreen.b * 1.5f, 0.8f);
+        createButtonOutline.effectDistance = UIConstants.OutlineDistanceLarge;
         
         Shadow createButtonShadow = createButtonObj.AddComponent<Shadow>();
-        createButtonShadow.effectColor = new Color(0.3f, 0.9f, 0.5f, 0.6f);
-        createButtonShadow.effectDistance = new Vector2(0, 0);
+        createButtonShadow.effectColor = new Color(UIConstants.SuccessGreen.r, UIConstants.SuccessGreen.g, UIConstants.SuccessGreen.b, 0.6f);
+        createButtonShadow.effectDistance = UIConstants.GlowDistance;
         
         // Button text
         GameObject textObj = new GameObject("Text");
@@ -479,14 +479,14 @@ public class AgentPanelUI : MonoBehaviour
         Text createButtonText = textObj.AddComponent<Text>();
         createButtonText.text = "+ CREATE AGENT";
         createButtonText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        createButtonText.fontSize = 18;
+        createButtonText.fontSize = UIConstants.FontSizeTitle;
         createButtonText.fontStyle = FontStyle.Bold;
-        createButtonText.color = new Color(1f, 1f, 1f, 1f);
+        createButtonText.color = Color.white;
         createButtonText.alignment = TextAnchor.MiddleCenter;
         
         Shadow textShadow = textObj.AddComponent<Shadow>();
         textShadow.effectColor = new Color(0, 0, 0, 0.8f);
-        textShadow.effectDistance = new Vector2(2, -2);
+        textShadow.effectDistance = UIConstants.OutlineDistance;
         
         // Connect button to create agent directly
         createButton.onClick.AddListener(OnCreateAgentClicked);
@@ -794,18 +794,18 @@ public class AgentPanelUI : MonoBehaviour
         buttonRowRect.anchorMin = new Vector2(0, 0);
         buttonRowRect.anchorMax = new Vector2(1, 0);
         buttonRowRect.pivot = new Vector2(0.5f, 0);
-        buttonRowRect.anchoredPosition = new Vector2(0, 10);
-        buttonRowRect.sizeDelta = new Vector2(-20, 40);
+        buttonRowRect.anchoredPosition = new Vector2(0, UIConstants.SpacingMedium);
+        buttonRowRect.sizeDelta = new Vector2(-20, UIConstants.ButtonHeight);
         
         HorizontalLayoutGroup buttonLayout = buttonRowObj.AddComponent<HorizontalLayoutGroup>();
-        buttonLayout.spacing = 8f;
+        buttonLayout.spacing = UIConstants.SpacingSmall;
         buttonLayout.childControlWidth = true;
         buttonLayout.childControlHeight = true;
         buttonLayout.childForceExpandWidth = true;
         buttonLayout.childForceExpandHeight = true;
         
-        // START ALL button
-        Button startAllBtn = CreateControlButton(buttonRowObj, "START ALL", new Color(0.2f, 0.6f, 0.3f, 0.9f));
+        // START ALL button using consistent color
+        Button startAllBtn = CreateControlButton(buttonRowObj, "START ALL", UIConstants.SuccessGreen);
         startAllBtn.onClick.AddListener(() => {
             if (agentManager != null)
             {
@@ -814,8 +814,8 @@ public class AgentPanelUI : MonoBehaviour
             }
         });
         
-        // PAUSE ALL button
-        Button pauseAllBtn = CreateControlButton(buttonRowObj, "PAUSE ALL", new Color(0.6f, 0.4f, 0.2f, 0.9f));
+        // PAUSE ALL button using consistent color
+        Button pauseAllBtn = CreateControlButton(buttonRowObj, "PAUSE ALL", UIConstants.WarningYellow);
         pauseAllBtn.onClick.AddListener(() => {
             if (agentManager != null)
             {
@@ -824,8 +824,8 @@ public class AgentPanelUI : MonoBehaviour
             }
         });
         
-        // RESET ALL button
-        Button resetAllBtn = CreateControlButton(buttonRowObj, "RESET ALL", new Color(0.5f, 0.3f, 0.6f, 0.9f));
+        // RESET ALL button using consistent color
+        Button resetAllBtn = CreateControlButton(buttonRowObj, "RESET ALL", UIConstants.PurpleAccent);
         resetAllBtn.onClick.AddListener(() => {
             if (agentManager != null)
             {
@@ -855,15 +855,15 @@ public class AgentPanelUI : MonoBehaviour
         colors.fadeDuration = 0.1f; // Faster transition
         btn.colors = colors;
         
-        // Add stunning outline
+        // Add stunning outline with consistent styling
         Outline btnOutline = btnObj.AddComponent<Outline>();
         btnOutline.effectColor = new Color(color.r * 1.5f, color.g * 1.5f, color.b * 1.5f, 0.6f);
-        btnOutline.effectDistance = new Vector2(2, -2);
+        btnOutline.effectDistance = UIConstants.OutlineDistance;
         
-        // Add glow shadow
+        // Add glow shadow with consistent styling
         Shadow btnShadow = btnObj.AddComponent<Shadow>();
         btnShadow.effectColor = new Color(color.r, color.g, color.b, 0.4f);
-        btnShadow.effectDistance = new Vector2(0, 0);
+        btnShadow.effectDistance = UIConstants.GlowDistance;
         
         // Button text
         GameObject textObj = new GameObject("Text");
@@ -877,15 +877,15 @@ public class AgentPanelUI : MonoBehaviour
         Text btnText = textObj.AddComponent<Text>();
         btnText.text = text;
         btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        btnText.fontSize = 12; // Slightly larger
+        btnText.fontSize = UIConstants.FontSizeBody;
         btnText.fontStyle = FontStyle.Bold;
-        btnText.color = new Color(1f, 1f, 1f, 0.95f); // Bright white
+        btnText.color = Color.white;
         btnText.alignment = TextAnchor.MiddleCenter;
         
-        // Add text shadow for depth
+        // Add text shadow for depth using consistent styling
         Shadow textShadow = textObj.AddComponent<Shadow>();
         textShadow.effectColor = new Color(0, 0, 0, 0.6f);
-        textShadow.effectDistance = new Vector2(1, -1);
+        textShadow.effectDistance = UIConstants.ShadowDistance;
         
         // Add button animator for stunning press effect
         if (enableStunningEffects)
@@ -969,18 +969,18 @@ public class AgentPanelUI : MonoBehaviour
         cardLayout.preferredHeight = 90;
         cardLayout.flexibleHeight = 0;
         
-        // Card background - STUNNING GLASSMORPHIC CARD
+        // Card background - STUNNING GLASSMORPHIC CARD using consistent colors
         Image cardBg = cardObj.AddComponent<Image>();
         cardBg.color = AgentCard.idleColor;
         
-        // Multiple outline layers for 3D depth
+        // Multiple outline layers for 3D depth using UIConstants
         Outline cardOutline = cardObj.AddComponent<Outline>();
-        cardOutline.effectColor = new Color(0.4f, 0.7f, 1f, 0.5f); // Brighter cyan outline
-        cardOutline.effectDistance = new Vector2(2, -2);
+        cardOutline.effectColor = UIConstants.CyanGlow;
+        cardOutline.effectDistance = UIConstants.OutlineDistance;
         
         Shadow cardShadow = cardObj.AddComponent<Shadow>();
-        cardShadow.effectColor = new Color(0.2f, 0.4f, 0.8f, 0.4f);
-        cardShadow.effectDistance = new Vector2(3, -3);
+        cardShadow.effectColor = UIConstants.BlueGlow;
+        cardShadow.effectDistance = UIConstants.OutlineDistanceLarge;
         
         // Add hover effect component
         if (enableStunningEffects)
@@ -1004,7 +1004,7 @@ public class AgentPanelUI : MonoBehaviour
         Text nameText = topRowObj.AddComponent<Text>();
         nameText.text = $"Agent {index}";
         nameText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        nameText.fontSize = 12;
+        nameText.fontSize = UIConstants.FontSizeBody;
         nameText.fontStyle = FontStyle.Bold;
         nameText.color = agent.agentColor;
         nameText.alignment = TextAnchor.MiddleLeft;
@@ -1022,8 +1022,8 @@ public class AgentPanelUI : MonoBehaviour
         Text statusText = statusObj.AddComponent<Text>();
         statusText.text = "● Idle";
         statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        statusText.fontSize = 10;
-        statusText.color = new Color(0.6f, 0.6f, 0.7f, 1f);
+        statusText.fontSize = UIConstants.FontSizeSmall;
+        statusText.color = UIConstants.MutedText;
         statusText.alignment = TextAnchor.MiddleRight;
         
         // Progress bar
@@ -1037,7 +1037,7 @@ public class AgentPanelUI : MonoBehaviour
         progressBarRect.sizeDelta = new Vector2(-16, 8);
         
         Image progressBg = progressBarObj.AddComponent<Image>();
-        progressBg.color = new Color(0.1f, 0.1f, 0.2f, 0.8f);
+        progressBg.color = UIConstants.ControlBackground;
         
         GameObject fillAreaObj = new GameObject("FillArea");
         fillAreaObj.transform.SetParent(progressBarObj.transform, false);
@@ -1097,8 +1097,8 @@ public class AgentPanelUI : MonoBehaviour
         Text progressText = statsTextObj.AddComponent<Text>();
         progressText.text = $"Progress: 0% | Speed: {agent.speedMultiplier:F1}x";
         progressText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        progressText.fontSize = 9;
-        progressText.color = new Color(0.5f, 0.65f, 0.8f, 0.9f);
+        progressText.fontSize = UIConstants.FontSizeTiny;
+        progressText.color = UIConstants.MutedText;
         progressText.alignment = TextAnchor.MiddleLeft;
         
         // Buttons (bottom row) - now includes Remove button
@@ -1110,10 +1110,10 @@ public class AgentPanelUI : MonoBehaviour
         focusButtonRect.anchorMax = new Vector2(0, 0);
         focusButtonRect.pivot = new Vector2(0, 0);
         focusButtonRect.anchoredPosition = new Vector2(8, 5);
-        focusButtonRect.sizeDelta = new Vector2(45, 25);
+        focusButtonRect.sizeDelta = new Vector2(50, UIConstants.ButtonHeightSmall);
         
         Image focusButtonImage = focusButtonObj.AddComponent<Image>();
-        focusButtonImage.color = new Color(0.1f, 0.2f, 0.3f, 0.8f);
+        focusButtonImage.color = UIConstants.ButtonBackground;
         
         Button focusButton = focusButtonObj.AddComponent<Button>();
         focusButton.targetGraphic = focusButtonImage;
@@ -1137,9 +1137,9 @@ public class AgentPanelUI : MonoBehaviour
         Text focusText = focusTextObj.AddComponent<Text>();
         focusText.text = "Idle";
         focusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        focusText.fontSize = 9;
+        focusText.fontSize = UIConstants.FontSizeTiny;
         focusText.fontStyle = FontStyle.Bold;
-        focusText.color = new Color(0.7f, 0.85f, 1f, 0.9f);
+        focusText.color = UIConstants.BrightCyan;
         focusText.alignment = TextAnchor.MiddleCenter;
         
         // Pause/Resume button
@@ -1149,11 +1149,11 @@ public class AgentPanelUI : MonoBehaviour
         pauseButtonRect.anchorMin = new Vector2(0, 0);
         pauseButtonRect.anchorMax = new Vector2(0, 0);
         pauseButtonRect.pivot = new Vector2(0, 0);
-        pauseButtonRect.anchoredPosition = new Vector2(58, 5);
-        pauseButtonRect.sizeDelta = new Vector2(60, 25);
+        pauseButtonRect.anchoredPosition = new Vector2(63, 5);
+        pauseButtonRect.sizeDelta = new Vector2(65, UIConstants.ButtonHeightSmall);
         
         Image pauseButtonImage = pauseButtonObj.AddComponent<Image>();
-        pauseButtonImage.color = new Color(0.15f, 0.2f, 0.1f, 0.8f);
+        pauseButtonImage.color = UIConstants.ButtonBackground;
         
         Button pauseButton = pauseButtonObj.AddComponent<Button>();
         pauseButton.targetGraphic = pauseButtonImage;
@@ -1177,9 +1177,9 @@ public class AgentPanelUI : MonoBehaviour
         Text pauseText = pauseTextObj.AddComponent<Text>();
         pauseText.text = "Pause";
         pauseText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        pauseText.fontSize = 9;
+        pauseText.fontSize = UIConstants.FontSizeTiny;
         pauseText.fontStyle = FontStyle.Bold;
-        pauseText.color = new Color(0.7f, 0.85f, 1f, 0.9f);
+        pauseText.color = UIConstants.BrightCyan;
         pauseText.alignment = TextAnchor.MiddleCenter;
         
         // Remove button
@@ -1189,11 +1189,11 @@ public class AgentPanelUI : MonoBehaviour
         removeButtonRect.anchorMin = new Vector2(0, 0);
         removeButtonRect.anchorMax = new Vector2(0, 0);
         removeButtonRect.pivot = new Vector2(0, 0);
-        removeButtonRect.anchoredPosition = new Vector2(123, 5);
-        removeButtonRect.sizeDelta = new Vector2(60, 25);
+        removeButtonRect.anchoredPosition = new Vector2(133, 5);
+        removeButtonRect.sizeDelta = new Vector2(65, UIConstants.ButtonHeightSmall);
         
         Image removeButtonImage = removeButtonObj.AddComponent<Image>();
-        removeButtonImage.color = new Color(0.4f, 0.1f, 0.1f, 0.8f);
+        removeButtonImage.color = UIConstants.ErrorRed;
         
         Button removeButton = removeButtonObj.AddComponent<Button>();
         removeButton.targetGraphic = removeButtonImage;
@@ -1218,9 +1218,9 @@ public class AgentPanelUI : MonoBehaviour
         Text removeText = removeTextObj.AddComponent<Text>();
         removeText.text = "Remove";
         removeText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        removeText.fontSize = 9;
+        removeText.fontSize = UIConstants.FontSizeTiny;
         removeText.fontStyle = FontStyle.Bold;
-        removeText.color = new Color(1f, 0.7f, 0.7f, 0.9f);
+        removeText.color = new Color(1f, 0.8f, 0.8f, 1f);
         removeText.alignment = TextAnchor.MiddleCenter;
         
         // Select toggle (radio button)
@@ -1234,7 +1234,7 @@ public class AgentPanelUI : MonoBehaviour
         selectToggleRect.sizeDelta = new Vector2(20, 20);
         
         Image selectBg = selectToggleObj.AddComponent<Image>();
-        selectBg.color = new Color(0.1f, 0.15f, 0.25f, 0.8f);
+        selectBg.color = UIConstants.ControlBackground;
         
         GameObject checkmarkObj = new GameObject("Checkmark");
         checkmarkObj.transform.SetParent(selectToggleObj.transform, false);

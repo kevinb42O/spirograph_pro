@@ -7,9 +7,9 @@ public class UIGlowEffect : MonoBehaviour
     private Image glowImage;
     
     [Header("Glow Settings")]
-    public Color glowColor = new Color(0.3f, 0.8f, 1f, 0.5f);
+    public Color glowColor = UIConstants.BlueGlow;
     public float glowIntensity = 1.5f;
-    public float pulseSpeed = 2f;
+    public float pulseSpeed = UIConstants.PulseSpeed;
     public bool enablePulse = true;
     
     [Header("Size")]
@@ -41,8 +41,11 @@ public class UIGlowEffect : MonoBehaviour
             pulseTime += Time.deltaTime * pulseSpeed;
             float pulse = (Mathf.Sin(pulseTime) + 1f) * 0.5f; // 0 to 1
             
+            // Apply smooth easing to pulse for more organic feel
+            float smoothPulse = UIConstants.SmoothEase(pulse);
+            
             Color currentColor = glowColor;
-            currentColor.a = glowColor.a * (0.5f + pulse * 0.5f);
+            currentColor.a = glowColor.a * (0.5f + smoothPulse * 0.5f);
             
             if (glowImage != null)
             {

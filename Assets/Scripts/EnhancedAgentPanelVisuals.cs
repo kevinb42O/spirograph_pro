@@ -14,25 +14,25 @@ public class EnhancedAgentPanelVisuals : MonoBehaviour
     [Header("Background Animation")]
     public bool animateBackground = true;
     public float backgroundAnimationSpeed = 0.3f;
-    public Color backgroundColor1 = new Color(0.01f, 0.02f, 0.12f, 0.92f);
-    public Color backgroundColor2 = new Color(0.02f, 0.05f, 0.15f, 0.92f);
+    public Color backgroundColor1 = UIConstants.DarkSpaceGlass;
+    public Color backgroundColor2 = UIConstants.DeepSpaceGlass;
     
     [Header("Border Glow")]
     public bool enableBorderGlow = true;
-    public float borderGlowSpeed = 1.5f;
+    public float borderGlowSpeed = UIConstants.PulseSpeed * 0.75f;
     public float borderMinIntensity = 0.4f;
     public float borderMaxIntensity = 0.8f;
-    public Color borderGlowColor = new Color(0.4f, 0.7f, 1f, 0.6f);
+    public Color borderGlowColor = UIConstants.CyanGlow;
     
     [Header("Particle Effects")]
     public bool enableParticles = true;
     public int particleCount = 30;
     public float particleSpeed = 20f;
-    public Color particleColor = new Color(0.3f, 0.6f, 1f, 0.3f);
+    public Color particleColor = UIConstants.BlueGlow;
     
     [Header("Panel Scale Animation")]
     public bool enableScaleAnimation = true;
-    public float scaleAnimationDuration = 0.5f;
+    public float scaleAnimationDuration = UIConstants.TransitionSlow;
     public AnimationCurve scaleCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
     
     private Image backgroundImage;
@@ -81,14 +81,16 @@ public class EnhancedAgentPanelVisuals : MonoBehaviour
     
     private void AnimateBackground()
     {
-        float t = (Mathf.Sin(animationTime * backgroundAnimationSpeed) + 1f) * 0.5f;
-        backgroundImage.color = Color.Lerp(backgroundColor1, backgroundColor2, t);
+        float rawT = (Mathf.Sin(animationTime * backgroundAnimationSpeed) + 1f) * 0.5f;
+        float smoothT = UIConstants.SmoothEase(rawT);
+        backgroundImage.color = Color.Lerp(backgroundColor1, backgroundColor2, smoothT);
     }
     
     private void AnimateBorderGlow()
     {
-        float intensity = Mathf.Lerp(borderMinIntensity, borderMaxIntensity, 
-            (Mathf.Sin(animationTime * borderGlowSpeed) + 1f) * 0.5f);
+        float rawT = (Mathf.Sin(animationTime * borderGlowSpeed) + 1f) * 0.5f;
+        float smoothT = UIConstants.SmoothEase(rawT);
+        float intensity = Mathf.Lerp(borderMinIntensity, borderMaxIntensity, smoothT);
         
         Color glowColor = borderGlowColor;
         glowColor.a = intensity;
