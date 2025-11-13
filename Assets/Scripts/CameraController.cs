@@ -251,7 +251,12 @@ public class CameraController : MonoBehaviour
         // Determine which target to orbit around
         Transform activeOrbitTarget = orbitTarget != null ? orbitTarget : target;
         
-        if (activeOrbitTarget == null) return;
+        if (activeOrbitTarget == null)
+        {
+            Debug.LogWarning("[CameraController] No orbit target available, disabling auto-orbit");
+            isOrbiting = false;
+            return;
+        }
         
         // Smooth transition into orbit mode
         orbitTransitionProgress = Mathf.Min(orbitTransitionProgress + Time.deltaTime * orbitTransitionSpeed, 1f);
@@ -533,7 +538,11 @@ public class CameraController : MonoBehaviour
     
     void UpdateSmoothFollowMode()
     {
-        if (target == null) return;
+        if (target == null)
+        {
+            Debug.LogWarning("[CameraController] No target available for smooth follow mode");
+            return;
+        }
         
         // Refresh input devices if null (hot-plugging support)
         if (mouse == null) mouse = Mouse.current;
@@ -580,12 +589,17 @@ public class CameraController : MonoBehaviour
         Vector3 targetPosition = target.position;
         
         // Look-ahead: predict where target is going
-        if (lookAhead > 0f)
+        if (lookAhead > 0f && target != null)
         {
             Rigidbody targetRb = target.GetComponent<Rigidbody>();
             if (targetRb != null && targetRb.linearVelocity.magnitude > 0.1f)
             {
-                targetPosition += targetRb.linearVelocity.normalized * lookAhead;
+                Vector3 velocity = targetRb.linearVelocity;
+                // Prevent NaN/Infinity in velocity calculations
+                if (!float.IsNaN(velocity.magnitude) && !float.IsInfinity(velocity.magnitude))
+                {
+                    targetPosition += velocity.normalized * lookAhead;
+                }
             }
         }
         
@@ -638,7 +652,15 @@ public class CameraController : MonoBehaviour
         // If requesting AutoOrbit mode, toggle orbit instead of switching internal follow/freefly
         if (mode == CameraMode.AutoOrbit)
         {
-            ToggleAutoOrbit();
+            // Only allow orbit if we have a valid target
+            if (target != null || orbitTarget != null)
+            {
+                ToggleAutoOrbit();
+            }
+            else
+            {
+                Debug.LogWarning("[CameraController] Cannot enable auto-orbit - no target available");
+            }
             return;
         }
         // Preserve current camera orientation when switching modes
@@ -653,12 +675,19 @@ public class CameraController : MonoBehaviour
         rotationVelocity = Vector2.zero;
         
         // If switching to follow mode, set distance based on current position
-        if (mode == CameraMode.SmoothFollow && target != null)
+        if (mode == CameraMode.SmoothFollow)
         {
-            currentDistance = Vector3.Distance(transform.position, target.position);
-            currentDistance = Mathf.Clamp(currentDistance, minDistance, maxDistance);
-            targetDistance = currentDistance;
-            targetOffset = target.position;
+            if (target != null)
+            {
+                currentDistance = Vector3.Distance(transform.position, target.position);
+                currentDistance = Mathf.Clamp(currentDistance, minDistance, maxDistance);
+                targetDistance = currentDistance;
+                targetOffset = target.position;
+            }
+            else
+            {
+                Debug.LogWarning("[CameraController] No target available for smooth follow mode");
+            }
         }
         
         currentMode = mode;
