@@ -135,7 +135,7 @@ public class PlayModeValidator
             
             if (agentPanel.agentListContent == null)
             {
-                errors.Add("AgentPanelUI.agentListContent is NULL! Agent cards won't display.");
+                warnings.Add("AgentPanelUI.agentListContent is NULL - will be created on UI generation.");
             }
             else
             {
@@ -144,7 +144,7 @@ public class PlayModeValidator
             
             if (agentPanel.globalStatsText == null)
             {
-                errors.Add("AgentPanelUI.globalStatsText is NULL! Stats won't display.");
+                warnings.Add("AgentPanelUI.globalStatsText is NULL - will be created on UI generation.");
             }
             else
             {

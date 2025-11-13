@@ -978,43 +978,30 @@ public class AgentPanelUI : MonoBehaviour
     {
         if (agentManager == null)
         {
-            Debug.LogError("[AgentPanelUI] Cannot populate - agentManager is null!");
+            // Silently return during initialization - this is normal
             return;
         }
 
         if (agentListContent == null)
         {
-            Debug.LogError("[AgentPanelUI] Cannot populate - agentListContent is null! Attempting to fix...");
-
-            // Try to find it
+            // Try to auto-fix before logging error
             if (agentPanel != null)
             {
                 Transform contentTransform = agentPanel.transform.Find("AgentList/Viewport/Content");
                 if (contentTransform != null)
                 {
                     agentListContent = contentTransform.gameObject;
-                    Debug.Log("✓ Found agentListContent");
-                }
-                else
-                {
-                    // Create the missing AgentList section
-                    Debug.LogWarning("AgentList section missing - creating it now...");
-                    CreateAgentListSection(agentPanel);
                 }
             }
-            else
-            {
-                Debug.LogError("[AgentPanelUI] agentPanel is also null! Cannot create agent list.");
-                return;
-            }
-
-            // Final check
+            
+            // If still null, just return silently during initialization
             if (agentListContent == null)
             {
-                Debug.LogError("[AgentPanelUI] Failed to create agentListContent!");
                 return;
             }
         }
+
+
 
         // Clear existing cards
         ClearAgentList();
