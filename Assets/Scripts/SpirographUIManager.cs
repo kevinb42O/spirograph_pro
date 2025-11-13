@@ -85,7 +85,7 @@ public class SpirographUIManager : MonoBehaviour
     public AgentPanelUI agentPanelUI;
 
     [Header("UI State")]
-    private GameObject controlPanel;
+    public GameObject controlPanel;
     private bool isUIVisible = true;
     private Text panelTitleText; // Reference to panel title for dynamic updates
     private ScrollRect controlPanelScrollRect; // Reference to scroll rect for auto-scrolling
@@ -1662,7 +1662,7 @@ public class SpirographUIManager : MonoBehaviour
         // Camera Presets Dropdown
         string[] presetNames = new string[] { "Fly-Around", "Zoom In", "Dolly Zoom", "Reveal", "Top-Down", "Spiral In", "Figure-8" };
         Dropdown presetsDropdown = CreateCompactDropdown(cameraSection.transform, "CameraPresetsDropdown",
-            new Vector2(0, cameraYPos), new List<string>(presetNames));
+            new Vector2(0, cameraYPos), presetNames);
         cameraYPos -= 40;
 
         // Play Preset Button

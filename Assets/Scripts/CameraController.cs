@@ -990,17 +990,28 @@ public class CameraController : MonoBehaviour
         json.AppendLine("{");
         json.AppendLine("  \"waypoints\": [");
 
-        for (int i = 0; i < cameraPath.waypoints.Count; i++)
+        var waypointsField = cameraPath.GetType().GetField("waypoints");
+        if (waypointsField == null) return null;
+        var waypoints = waypointsField.GetValue(cameraPath) as System.Collections.IList;
+        if (waypoints == null) return null;
+
+        for (int i = 0; i < waypoints.Count; i++)
         {
-            var waypoint = cameraPath.waypoints[i];
+            var waypoint = waypoints[i];
+            var waypointType = waypoint.GetType();
+            var position = (Vector3)waypointType.GetField("position").GetValue(waypoint);
+            var rotation = (Quaternion)waypointType.GetField("rotation").GetValue(waypoint);
+            var fov = (float)waypointType.GetField("fov").GetValue(waypoint);
+            var arrivalTime = (float)waypointType.GetField("arrivalTime").GetValue(waypoint);
+
             json.AppendLine("    {");
-            json.AppendLine($"      \"position\": [{waypoint.position.x}, {waypoint.position.y}, {waypoint.position.z}],");
-            json.AppendLine($"      \"rotation\": [{waypoint.rotation.x}, {waypoint.rotation.y}, {waypoint.rotation.z}, {waypoint.rotation.w}],");
-            json.AppendLine($"      \"fov\": {waypoint.fov},");
-            json.AppendLine($"      \"arrivalTime\": {waypoint.arrivalTime}");
+            json.AppendLine($"      \"position\": [{position.x}, {position.y}, {position.z}],");
+            json.AppendLine($"      \"rotation\": [{rotation.x}, {rotation.y}, {rotation.z}, {rotation.w}],");
+            json.AppendLine($"      \"fov\": {fov},");
+            json.AppendLine($"      \"arrivalTime\": {arrivalTime}");
             json.Append("    }");
 
-            if (i < cameraPath.waypoints.Count - 1)
+            if (i < waypoints.Count - 1)
             {
                 json.AppendLine(",");
             }
