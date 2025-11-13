@@ -9,10 +9,10 @@ public class StunningButtonEffect : MonoBehaviour, IPointerEnterHandler, IPointe
     private Color originalColor;
     
     [Header("Visual Effects")]
-    public float hoverScaleMultiplier = 1.1f;
-    public float pressScaleMultiplier = 0.95f;
+    public float hoverScaleMultiplier = UIConstants.ButtonHoverScale;
+    public float pressScaleMultiplier = UIConstants.ButtonPressScale;
     public Color hoverTintColor = new Color(1.2f, 1.2f, 1.2f, 1f);
-    public float transitionSpeed = 10f;
+    public float transitionSpeed = UIConstants.AnimationSpeed;
     
     [Header("Glow Effect")]
     public bool enableGlow = true;
@@ -36,12 +36,15 @@ public class StunningButtonEffect : MonoBehaviour, IPointerEnterHandler, IPointe
     
     private void Update()
     {
-        // Smooth transitions
-        transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * transitionSpeed);
+        // Smooth transitions with easing
+        float t = Time.deltaTime * transitionSpeed;
+        float easedT = UIConstants.SmoothEase(Mathf.Clamp01(t));
+        
+        transform.localScale = Vector3.Lerp(transform.localScale, targetScale, easedT);
         
         if (buttonImage != null)
         {
-            buttonImage.color = Color.Lerp(buttonImage.color, targetColor, Time.deltaTime * transitionSpeed);
+            buttonImage.color = Color.Lerp(buttonImage.color, targetColor, easedT);
         }
     }
     

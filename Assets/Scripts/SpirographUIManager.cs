@@ -251,6 +251,8 @@ public class SpirographUIManager : MonoBehaviour
             speedSlider.onValueChanged.RemoveAllListeners();
             speedSlider.value = agent.agentSpeed; // Set to agent's current value
             speedSlider.onValueChanged.AddListener((value) => {
+                // Clamp to safe range and prevent negative values
+                value = Mathf.Max(0f, Mathf.Clamp(value, speedSlider.minValue, speedSlider.maxValue));
                 agent.agentSpeed = value;
                 agent.useIndividualSettings = true; // Ensure agent uses its own settings
                 if (speedText != null)
@@ -271,6 +273,8 @@ public class SpirographUIManager : MonoBehaviour
             rotationSpeedSlider.onValueChanged.RemoveAllListeners();
             rotationSpeedSlider.value = agent.agentRotationSpeed;
             rotationSpeedSlider.onValueChanged.AddListener((value) => {
+                // Clamp to 0-1 range
+                value = Mathf.Clamp01(value);
                 agent.agentRotationSpeed = value;
                 agent.useIndividualSettings = true;
                 Debug.Log($"Agent {agent.agentIndex} rotation speed: {value:F2}");
@@ -283,9 +287,11 @@ public class SpirographUIManager : MonoBehaviour
             cyclesSlider.onValueChanged.RemoveAllListeners();
             cyclesSlider.value = agent.agentCycles;
             cyclesSlider.onValueChanged.AddListener((value) => {
-                agent.agentCycles = (int)value;
+                // Ensure at least 1 cycle
+                int cycles = Mathf.Max(1, (int)value);
+                agent.agentCycles = cycles;
                 agent.useIndividualSettings = true;
-                Debug.Log($"Agent {agent.agentIndex} cycles: {(int)value}");
+                Debug.Log($"Agent {agent.agentIndex} cycles: {cycles}");
             });
         }
         
@@ -295,6 +301,8 @@ public class SpirographUIManager : MonoBehaviour
             penDistanceSlider.onValueChanged.RemoveAllListeners();
             penDistanceSlider.value = agent.agentPenDistance;
             penDistanceSlider.onValueChanged.AddListener((value) => {
+                // Ensure non-negative
+                value = Mathf.Max(0f, value);
                 agent.agentPenDistance = value;
                 agent.useIndividualSettings = true;
                 Debug.Log($"Agent {agent.agentIndex} pen distance: {value:F2}x");
@@ -307,6 +315,8 @@ public class SpirographUIManager : MonoBehaviour
             lineWidthSlider.onValueChanged.RemoveAllListeners();
             lineWidthSlider.value = agent.agentLineWidth;
             lineWidthSlider.onValueChanged.AddListener((value) => {
+                // Clamp to reasonable range
+                value = Mathf.Clamp(value, 0.01f, 2f);
                 agent.agentLineWidth = value;
                 agent.UpdateLineWidth(value);
                 agent.useIndividualSettings = true;
@@ -320,6 +330,8 @@ public class SpirographUIManager : MonoBehaviour
             lineBrightnessSlider.onValueChanged.RemoveAllListeners();
             lineBrightnessSlider.value = agent.agentLineBrightness;
             lineBrightnessSlider.onValueChanged.AddListener((value) => {
+                // Clamp to 0-1 range
+                value = Mathf.Clamp01(value);
                 agent.agentLineBrightness = value;
                 agent.useIndividualSettings = true;
                 Debug.Log($"Agent {agent.agentIndex} line brightness: {value:F2}");
@@ -542,17 +554,23 @@ public class SpirographUIManager : MonoBehaviour
     /// </summary>
     public void ExitPerAgentControl()
     {
-        if (!perAgentControlMode && selectedAgent == null) return; // Already in master mode
+        // Early exit if already in master mode
+        if (!perAgentControlMode && selectedAgent == null)
+        {
+            return;
+        }
         
         Debug.Log("Exiting per-agent control mode, returning to master control");
         
         // Safely disable individual settings
         if (selectedAgent != null)
         {
-            try {
+            try
+            {
                 selectedAgent.useIndividualSettings = false; // Agent will use master settings again
             }
-            catch (System.Exception e) {
+            catch (System.Exception e)
+            {
                 Debug.LogWarning($"Could not disable individual settings on agent: {e.Message}");
             }
         }
@@ -607,7 +625,11 @@ public class SpirographUIManager : MonoBehaviour
     /// </summary>
     void ConnectSlidersToActiveRotor()
     {
-        if (activeRoller == null) return;
+        if (activeRoller == null)
+        {
+            Debug.LogWarning("[UIManager] Cannot connect sliders - no active rotor available");
+            return;
+        }
         
         // Speed Slider
         if (speedSlider != null)
@@ -1030,7 +1052,7 @@ public class SpirographUIManager : MonoBehaviour
             panel.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
         }
         
-        float duration = 0.3f;
+        float duration = UIConstants.TransitionNormal;
         float elapsed = 0f;
         float startAlpha = canvasGroup.alpha;
         float targetAlpha = show ? 1f : 0f;
@@ -1042,8 +1064,8 @@ public class SpirographUIManager : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
-            // Smooth  easing
-            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+            // Use UIConstants smooth easing for better feel
+            float smoothT = UIConstants.SmoothEase(t);
             
             canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, smoothT);
             panel.transform.localScale = Vector3.Lerp(startScale, targetScale, smoothT);
@@ -1083,58 +1105,59 @@ public class SpirographUIManager : MonoBehaviour
         
         CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.referenceResolution = new Vector2(UIConstants.CanvasReferenceWidth, UIConstants.CanvasReferenceHeight);
+        scaler.matchWidthOrHeight = 0.5f; // Balance between width and height matching
         
         canvasObj.AddComponent<GraphicRaycaster>();
         
         // Create Hide UI Button (Top-Right Corner - ALWAYS VISIBLE) - Modern glassmorphic style
-        hideUIButton = CreateModernButton(canvas.transform, "HideUIButton", new Vector2(-15, -15), new Vector2(90, 40), "⊗ HIDE");
+        hideUIButton = CreateModernButton(canvas.transform, "HideUIButton", new Vector2(-UIConstants.PanelPadding, -UIConstants.PanelPadding), new Vector2(90, UIConstants.ButtonHeight), "⊗ HIDE");
         RectTransform hideButtonRect = hideUIButton.GetComponent<RectTransform>();
         hideButtonRect.anchorMin = new Vector2(1, 1); // Top-right anchor
         hideButtonRect.anchorMax = new Vector2(1, 1);
         hideButtonRect.pivot = new Vector2(1, 1);
         
-        // Glassmorphic style for hide button
+        // Glassmorphic style for hide button using UIConstants
         Image hideButtonImage = hideUIButton.GetComponent<Image>();
-        hideButtonImage.color = new Color(0.05f, 0.05f, 0.15f, 0.7f); // Deep space glass
+        hideButtonImage.color = UIConstants.SectionBackground;
         
-        // Add subtle glow outline
+        // Add subtle glow outline using UIConstants
         Outline hideOutline = hideUIButton.gameObject.AddComponent<Outline>();
-        hideOutline.effectColor = new Color(0.4f, 0.6f, 1f, 0.5f); // Cyan glow
-        hideOutline.effectDistance = new Vector2(1, -1);
+        hideOutline.effectColor = UIConstants.CyanGlow;
+        hideOutline.effectDistance = UIConstants.ShadowDistance;
         
         Text hideButtonText = hideUIButton.GetComponentInChildren<Text>();
-        hideButtonText.fontSize = 14;
+        hideButtonText.fontSize = UIConstants.FontSizeHeader;
         hideButtonText.fontStyle = FontStyle.Bold;
-        hideButtonText.color = new Color(0.8f, 0.9f, 1f, 0.95f); // Soft cyan-white
+        hideButtonText.color = UIConstants.SoftCyanWhite;
         
-        // Create Panel Background - Modern Glassmorphism with cosmic theme - NOW SCROLLABLE!
+        // Create Panel Background - Modern Glassmorphism with cosmic theme using UIConstants
         GameObject panel = new GameObject("ControlPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform panelRect = panel.AddComponent<RectTransform>();
         panelRect.anchorMin = new Vector2(0, 0);
         panelRect.anchorMax = new Vector2(0, 1);
         panelRect.pivot = new Vector2(0, 0.5f);
-        panelRect.anchoredPosition = new Vector2(15, 0);
-        panelRect.sizeDelta = new Vector2(340, -80); // Full height minus padding (80 = 15 top + 15 bottom + 50 for title)
+        panelRect.anchoredPosition = new Vector2(UIConstants.PanelPadding, 0);
+        panelRect.sizeDelta = new Vector2(340, -80); // Full height minus padding
         
         Image panelImage = panel.AddComponent<Image>();
-        panelImage.color = new Color(0.02f, 0.02f, 0.08f, 0.75f);
+        panelImage.color = UIConstants.DeepSpaceGlass;
         
         // Add Canvas Group for smooth transitions
         CanvasGroup panelGroup = panel.AddComponent<CanvasGroup>();
         panelGroup.alpha = 1f;
         
-        // Add subtle outer glow
+        // Add subtle outer glow using UIConstants
         Shadow panelGlow = panel.AddComponent<Shadow>();
-        panelGlow.effectColor = new Color(0.2f, 0.4f, 0.8f, 0.3f);
-        panelGlow.effectDistance = new Vector2(0, 0);
+        panelGlow.effectColor = UIConstants.BlueGlow;
+        panelGlow.effectDistance = UIConstants.GlowDistance;
         panelGlow.useGraphicAlpha = true;
         
-        // Add border accent
+        // Add border accent using UIConstants
         Outline panelOutline = panel.AddComponent<Outline>();
-        panelOutline.effectColor = new Color(0.3f, 0.5f, 0.9f, 0.25f);
-        panelOutline.effectDistance = new Vector2(2, -2);
+        panelOutline.effectColor = UIConstants.CyanGlow;
+        panelOutline.effectDistance = UIConstants.OutlineDistance;
         
         // Add ScrollRect for scrolling
         ScrollRect panelScroll = panel.AddComponent<ScrollRect>();
@@ -1179,8 +1202,8 @@ public class SpirographUIManager : MonoBehaviour
         contentLayout.childControlHeight = true;
         contentLayout.childForceExpandWidth = false;
         contentLayout.childForceExpandHeight = false;
-        contentLayout.spacing = 10f; // Space between sections
-        contentLayout.padding = new RectOffset(0, 0, 20, 20); // Top and bottom padding
+        contentLayout.spacing = UIConstants.SectionSpacing;
+        contentLayout.padding = new RectOffset(0, 0, (int)UIConstants.SpacingXL, (int)UIConstants.SpacingXL);
         
         // Add ContentSizeFitter to auto-adjust height based on content
         ContentSizeFitter contentFitter = content.AddComponent<ContentSizeFitter>();
@@ -1214,15 +1237,15 @@ public class SpirographUIManager : MonoBehaviour
         Text titleText = titleObj.AddComponent<Text>();
         titleText.text = "✦ SPIROGRAPH CONTROLS";
         titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        titleText.fontSize = 18;
+        titleText.fontSize = UIConstants.FontSizeTitle;
         titleText.fontStyle = FontStyle.Bold;
-        titleText.color = new Color(0.7f, 0.85f, 1f, 0.9f); // Bright cyan
+        titleText.color = UIConstants.BrightCyan;
         titleText.alignment = TextAnchor.MiddleCenter;
         
-        // Add subtle glow to title
+        // Add subtle glow to title using UIConstants
         Shadow titleShadow = titleObj.AddComponent<Shadow>();
-        titleShadow.effectColor = new Color(0.3f, 0.6f, 1f, 0.5f);
-        titleShadow.effectDistance = new Vector2(0, 0);
+        titleShadow.effectColor = UIConstants.BlueGlow;
+        titleShadow.effectDistance = UIConstants.GlowDistance;
         
         yPos -= 55;
         
@@ -1580,7 +1603,121 @@ public class SpirographUIManager : MonoBehaviour
         autoOrbitButton = CreateModernButton(cameraSection.transform, "AutoOrbitButton", new Vector2(0, cameraYPos), new Vector2(290, 38), "🎬 AUTO ORBIT");
         Image orbitImg = autoOrbitButton.GetComponent<Image>();
         orbitImg.color = new Color(0.15f, 0.05f, 0.25f, 0.8f);
-        cameraYPos -= 55;
+        cameraYPos -= 50;
+        
+        // ============================================================
+        // CINEMATIC PRESETS
+        // ============================================================
+        
+        // Presets Label
+        GameObject presetsLabelObj = new GameObject("PresetsLabel");
+        presetsLabelObj.transform.SetParent(cameraSection.transform, false);
+        RectTransform presetsLabelRect = presetsLabelObj.AddComponent<RectTransform>();
+        presetsLabelRect.anchorMin = new Vector2(0, 1);
+        presetsLabelRect.anchorMax = new Vector2(0, 1);
+        presetsLabelRect.pivot = new Vector2(0, 1);
+        presetsLabelRect.anchoredPosition = new Vector2(0, cameraYPos);
+        presetsLabelRect.sizeDelta = new Vector2(290, 20);
+        Text presetsLabel = presetsLabelObj.AddComponent<Text>();
+        presetsLabel.text = "Cinematic Presets:";
+        presetsLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        presetsLabel.fontSize = 12;
+        presetsLabel.fontStyle = FontStyle.Bold;
+        presetsLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
+        presetsLabel.alignment = TextAnchor.MiddleLeft;
+        cameraYPos -= 28;
+        
+        // Camera Presets Dropdown
+        Dropdown presetsDropdown = CreateCompactDropdown(cameraSection.transform, "CameraPresetsDropdown", 
+            new Vector2(0, cameraYPos), CameraPresets.GetPresetNames());
+        cameraYPos -= 40;
+        
+        // Play Preset Button
+        Button playPresetButton = CreateModernButton(cameraSection.transform, "PlayPresetButton", new Vector2(0, cameraYPos), new Vector2(140, 35), "▶ PLAY");
+        Image playPresetImg = playPresetButton.GetComponent<Image>();
+        playPresetImg.color = new Color(0.05f, 0.20f, 0.15f, 0.8f); // Green
+        
+        // Stop Preset Button
+        Button stopPresetButton = CreateModernButton(cameraSection.transform, "StopPresetButton", new Vector2(150, cameraYPos), new Vector2(140, 35), "⏹ STOP");
+        Image stopPresetImg = stopPresetButton.GetComponent<Image>();
+        stopPresetImg.color = new Color(0.20f, 0.05f, 0.05f, 0.8f); // Red
+        cameraYPos -= 45;
+        
+        // ============================================================
+        // CAMERA PATH WAYPOINTS
+        // ============================================================
+        
+        // Waypoints Label
+        GameObject waypointsLabelObj = new GameObject("WaypointsLabel");
+        waypointsLabelObj.transform.SetParent(cameraSection.transform, false);
+        RectTransform waypointsLabelRect = waypointsLabelObj.AddComponent<RectTransform>();
+        waypointsLabelRect.anchorMin = new Vector2(0, 1);
+        waypointsLabelRect.anchorMax = new Vector2(0, 1);
+        waypointsLabelRect.pivot = new Vector2(0, 1);
+        waypointsLabelRect.anchoredPosition = new Vector2(0, cameraYPos);
+        waypointsLabelRect.sizeDelta = new Vector2(290, 20);
+        Text waypointsLabel = waypointsLabelObj.AddComponent<Text>();
+        waypointsLabel.text = "Camera Path:";
+        waypointsLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        waypointsLabel.fontSize = 12;
+        waypointsLabel.fontStyle = FontStyle.Bold;
+        waypointsLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
+        waypointsLabel.alignment = TextAnchor.MiddleLeft;
+        cameraYPos -= 28;
+        
+        // Add Waypoint Button
+        Button addWaypointButton = CreateModernButton(cameraSection.transform, "AddWaypointButton", new Vector2(0, cameraYPos), new Vector2(140, 35), "+ WAYPOINT");
+        
+        // Clear Waypoints Button
+        Button clearWaypointsButton = CreateModernButton(cameraSection.transform, "ClearWaypointsButton", new Vector2(150, cameraYPos), new Vector2(140, 35), "✖ CLEAR");
+        cameraYPos -= 42;
+        
+        // Play Path Button
+        Button playPathButton = CreateModernButton(cameraSection.transform, "PlayPathButton", new Vector2(0, cameraYPos), new Vector2(140, 35), "▶ PLAY PATH");
+        Image playPathImg = playPathButton.GetComponent<Image>();
+        playPathImg.color = new Color(0.05f, 0.15f, 0.25f, 0.8f); // Blue
+        
+        // Stop Path Button
+        Button stopPathButton = CreateModernButton(cameraSection.transform, "StopPathButton", new Vector2(150, cameraYPos), new Vector2(140, 35), "⏹ STOP PATH");
+        cameraYPos -= 45;
+        
+        // ============================================================
+        // ADVANCED CAMERA FEATURES
+        // ============================================================
+        
+        // Camera Features Label
+        GameObject featuresLabelObj = new GameObject("FeaturesLabel");
+        featuresLabelObj.transform.SetParent(cameraSection.transform, false);
+        RectTransform featuresLabelRect = featuresLabelObj.AddComponent<RectTransform>();
+        featuresLabelRect.anchorMin = new Vector2(0, 1);
+        featuresLabelRect.anchorMax = new Vector2(0, 1);
+        featuresLabelRect.pivot = new Vector2(0, 1);
+        featuresLabelRect.anchoredPosition = new Vector2(0, cameraYPos);
+        featuresLabelRect.sizeDelta = new Vector2(290, 20);
+        Text featuresLabel = featuresLabelObj.AddComponent<Text>();
+        featuresLabel.text = "Advanced Features:";
+        featuresLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        featuresLabel.fontSize = 12;
+        featuresLabel.fontStyle = FontStyle.Bold;
+        featuresLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
+        featuresLabel.alignment = TextAnchor.MiddleLeft;
+        cameraYPos -= 28;
+        
+        // Recording Mode Toggle
+        Toggle recordingToggle = CreateModernToggle(cameraSection.transform, "RecordingToggle", new Vector2(0, cameraYPos), "🎥 Recording Mode");
+        cameraYPos -= 40;
+        
+        // Camera Shake Toggle
+        Toggle shakeToggle = CreateModernToggle(cameraSection.transform, "ShakeToggle", new Vector2(0, cameraYPos), "📳 Camera Shake");
+        cameraYPos -= 40;
+        
+        // Auto-Framing Toggle
+        Toggle autoFramingToggle = CreateModernToggle(cameraSection.transform, "AutoFramingToggle", new Vector2(0, cameraYPos), "🎯 Auto-Framing");
+        cameraYPos -= 40;
+        
+        // Multi-Agent Focus Toggle
+        Toggle multiAgentFocusToggle = CreateModernToggle(cameraSection.transform, "MultiAgentFocusToggle", new Vector2(0, cameraYPos), "👥 Multi-Agent Focus");
+        cameraYPos -= 50;
         
         #if UNITY_EDITOR
         // Force serialization of button references
@@ -1609,6 +1746,94 @@ public class SpirographUIManager : MonoBehaviour
             });
             
             Debug.Log("✓ Camera buttons connected to CameraController!");
+            
+            // ============================================================
+            // CONNECT CINEMATIC PRESETS
+            // ============================================================
+            
+            // Find or create CameraPresets component
+            CameraPresets cameraPresets = cameraController.GetComponent<CameraPresets>();
+            if (cameraPresets == null)
+            {
+                cameraPresets = cameraController.gameObject.AddComponent<CameraPresets>();
+                Debug.Log("✓ Created CameraPresets component");
+            }
+            
+            // Connect preset dropdown and buttons
+            playPresetButton.onClick.AddListener(() => {
+                int selectedIndex = presetsDropdown.value;
+                cameraPresets.ExecutePreset(selectedIndex);
+                Debug.Log($"🎬 Playing preset: {presetsDropdown.options[selectedIndex].text}");
+            });
+            
+            stopPresetButton.onClick.AddListener(() => {
+                cameraPresets.StopCurrentPreset();
+                Debug.Log("🎬 Stopped current preset");
+            });
+            
+            // ============================================================
+            // CONNECT CAMERA PATH
+            // ============================================================
+            
+            // Find or create CameraPath component
+            CameraPath cameraPath = cameraController.GetComponent<CameraPath>();
+            if (cameraPath == null)
+            {
+                cameraPath = cameraController.gameObject.AddComponent<CameraPath>();
+                Debug.Log("✓ Created CameraPath component");
+            }
+            
+            // Connect waypoint buttons
+            addWaypointButton.onClick.AddListener(() => {
+                cameraPath.AddWaypointAtCurrentPosition();
+                Debug.Log($"📍 Added waypoint (Total: {cameraPath.waypoints.Count})");
+            });
+            
+            clearWaypointsButton.onClick.AddListener(() => {
+                cameraPath.ClearWaypoints();
+                Debug.Log("📍 Cleared all waypoints");
+            });
+            
+            playPathButton.onClick.AddListener(() => {
+                cameraPath.Play();
+                Debug.Log("▶ Playing camera path");
+            });
+            
+            stopPathButton.onClick.AddListener(() => {
+                cameraPath.Stop();
+                Debug.Log("⏹ Stopped camera path");
+            });
+            
+            // ============================================================
+            // CONNECT ADVANCED FEATURES
+            // ============================================================
+            
+            // Recording Mode Toggle
+            recordingToggle.onValueChanged.AddListener((isOn) => {
+                cameraController.recordingMode = isOn;
+                cameraController.ToggleRecordingMode();
+                Debug.Log($"🎥 Recording Mode: {(isOn ? "ON" : "OFF")}");
+            });
+            
+            // Camera Shake Toggle
+            shakeToggle.onValueChanged.AddListener((isOn) => {
+                cameraController.enableIdleShake = isOn;
+                Debug.Log($"📳 Camera Shake: {(isOn ? "ON" : "OFF")}");
+            });
+            
+            // Auto-Framing Toggle
+            autoFramingToggle.onValueChanged.AddListener((isOn) => {
+                cameraController.autoFraming = isOn;
+                Debug.Log($"🎯 Auto-Framing: {(isOn ? "ON" : "OFF")}");
+            });
+            
+            // Multi-Agent Focus Toggle
+            multiAgentFocusToggle.onValueChanged.AddListener((isOn) => {
+                cameraController.focusOnMultipleAgents = isOn;
+                Debug.Log($"👥 Multi-Agent Focus: {(isOn ? "ON" : "OFF")}");
+            });
+            
+            Debug.Log("✓ Advanced camera features connected!");
         }
         else
         {
@@ -1778,9 +2003,9 @@ public class SpirographUIManager : MonoBehaviour
         Text label = labelObj.AddComponent<Text>();
         label.text = labelText;
         label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        label.fontSize = 12;
+        label.fontSize = UIConstants.FontSizeBody;
         label.fontStyle = FontStyle.Bold;
-        label.color = new Color(0.7f, 0.85f, 1f, 0.9f); // Cyan tint
+        label.color = UIConstants.BrightCyan;
         label.alignment = TextAnchor.MiddleLeft;
         
         // Value Label (right aligned)
@@ -1795,8 +2020,8 @@ public class SpirographUIManager : MonoBehaviour
         valueLabel = valueLabelObj.AddComponent<Text>();
         valueLabel.text = valueText;
         valueLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        valueLabel.fontSize = 11;
-        valueLabel.color = new Color(0.5f, 0.7f, 1f, 0.8f); // Softer cyan
+        valueLabel.fontSize = UIConstants.FontSizeSmall;
+        valueLabel.color = UIConstants.MutedText;
         valueLabel.alignment = TextAnchor.MiddleRight;
         
         // Background (glassmorphic)
@@ -1807,12 +2032,12 @@ public class SpirographUIManager : MonoBehaviour
         bgRect.anchorMax = Vector2.one;
         bgRect.sizeDelta = Vector2.zero;
         Image bgImage = bg.AddComponent<Image>();
-        bgImage.color = new Color(0.1f, 0.15f, 0.25f, 0.4f); // Deep space glass
+        bgImage.color = UIConstants.ControlBackground;
         
-        // Add subtle outline
+        // Add subtle outline using UIConstants
         Outline bgOutline = bg.AddComponent<Outline>();
-        bgOutline.effectColor = new Color(0.2f, 0.4f, 0.7f, 0.3f);
-        bgOutline.effectDistance = new Vector2(1, -1);
+        bgOutline.effectColor = UIConstants.CyanGlow;
+        bgOutline.effectDistance = UIConstants.ShadowDistance;
         
         // Fill Area
         GameObject fillArea = new GameObject("Fill Area");
@@ -1831,12 +2056,12 @@ public class SpirographUIManager : MonoBehaviour
         fillRect.anchorMax = Vector2.one;
         fillRect.sizeDelta = Vector2.zero;
         Image fillImage = fill.AddComponent<Image>();
-        fillImage.color = new Color(0.3f, 0.6f, 1f, 0.6f); // Bright cyan
+        fillImage.color = UIConstants.BlueGlow;
         
-        // Add glow to fill
+        // Add glow to fill using UIConstants
         Shadow fillGlow = fill.AddComponent<Shadow>();
-        fillGlow.effectColor = new Color(0.4f, 0.7f, 1f, 0.5f);
-        fillGlow.effectDistance = new Vector2(0, 0);
+        fillGlow.effectColor = UIConstants.CyanGlow;
+        fillGlow.effectDistance = UIConstants.GlowDistance;
         
         // Handle Area
         GameObject handleArea = new GameObject("Handle Slide Area");
@@ -1853,12 +2078,12 @@ public class SpirographUIManager : MonoBehaviour
         RectTransform handleRect = handle.AddComponent<RectTransform>();
         handleRect.sizeDelta = new Vector2(10, 10); // Smaller handle (was 16x16)
         Image handleImage = handle.AddComponent<Image>();
-        handleImage.color = new Color(0.9f, 0.95f, 1f, 1f); // Bright white-cyan
+        handleImage.color = UIConstants.BrightWhite;
         
-        // Add handle glow
+        // Add handle glow using UIConstants
         Shadow handleGlow = handle.AddComponent<Shadow>();
-        handleGlow.effectColor = new Color(0.4f, 0.7f, 1f, 0.8f);
-        handleGlow.effectDistance = new Vector2(0, 0);
+        handleGlow.effectColor = UIConstants.CyanGlow;
+        handleGlow.effectDistance = UIConstants.GlowDistance;
         
         // Slider
         Slider slider = sliderObj.AddComponent<Slider>();
@@ -2322,32 +2547,32 @@ public class SpirographUIManager : MonoBehaviour
         buttonRect.anchoredPosition = position;
         buttonRect.sizeDelta = size;
         
-        // Glassmorphic background
+        // Glassmorphic background using UIConstants
         Image buttonImage = buttonObj.AddComponent<Image>();
-        buttonImage.color = new Color(0.08f, 0.12f, 0.22f, 0.7f); // Deep space glass
+        buttonImage.color = UIConstants.ButtonBackground;
         
-        // Add subtle outline
+        // Add subtle outline using UIConstants
         Outline buttonOutline = buttonObj.AddComponent<Outline>();
-        buttonOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.4f); // Cyan glow
-        buttonOutline.effectDistance = new Vector2(1, -1);
+        buttonOutline.effectColor = UIConstants.CyanGlow;
+        buttonOutline.effectDistance = UIConstants.ShadowDistance;
         
-        // Add hover glow effect
+        // Add hover glow effect using UIConstants
         Shadow buttonGlow = buttonObj.AddComponent<Shadow>();
-        buttonGlow.effectColor = new Color(0.2f, 0.4f, 0.8f, 0.3f);
-        buttonGlow.effectDistance = new Vector2(0, 0);
+        buttonGlow.effectColor = UIConstants.BlueGlow;
+        buttonGlow.effectDistance = UIConstants.GlowDistance;
         
         Button button = buttonObj.AddComponent<Button>();
         button.targetGraphic = buttonImage;
         
-        // Setup hover colors
+        // Setup hover colors with consistent styling
         ColorBlock colors = button.colors;
-        colors.normalColor = new Color(1f, 1f, 1f, 1f);
-        colors.highlightedColor = new Color(0.85f, 0.95f, 1f, 1f); // Bright on hover
-        colors.pressedColor = new Color(0.6f, 0.8f, 1f, 1f); // Cyan on press
-        colors.selectedColor = new Color(0.85f, 0.95f, 1f, 1f);
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(UIConstants.BrightCyan.r, UIConstants.BrightCyan.g, UIConstants.BrightCyan.b, 1f);
+        colors.pressedColor = new Color(UIConstants.CyanGlow.r, UIConstants.CyanGlow.g, UIConstants.CyanGlow.b, 1f);
+        colors.selectedColor = new Color(UIConstants.BrightCyan.r, UIConstants.BrightCyan.g, UIConstants.BrightCyan.b, 1f);
         colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
         colors.colorMultiplier = 1.2f;
-        colors.fadeDuration = 0.15f;
+        colors.fadeDuration = UIConstants.TransitionFast;
         button.colors = colors;
         
         // Text
@@ -2360,15 +2585,15 @@ public class SpirographUIManager : MonoBehaviour
         Text text = textObj.AddComponent<Text>();
         text.text = buttonText;
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 12;
+        text.fontSize = UIConstants.FontSizeBody;
         text.fontStyle = FontStyle.Bold;
-        text.color = new Color(0.85f, 0.95f, 1f, 0.95f); // Bright cyan-white
+        text.color = UIConstants.SoftCyanWhite;
         text.alignment = TextAnchor.MiddleCenter;
         
-        // Add text shadow for depth
+        // Add text shadow for depth using UIConstants
         Shadow textShadow = textObj.AddComponent<Shadow>();
         textShadow.effectColor = new Color(0, 0, 0, 0.5f);
-        textShadow.effectDistance = new Vector2(1, -1);
+        textShadow.effectDistance = UIConstants.ShadowDistance;
         
         return button;
     }
@@ -3045,7 +3270,11 @@ public class SpirographUIManager : MonoBehaviour
     /// </summary>
     void ConnectSlidersToSharedState()
     {
-        if (sharedPathState == null) return;
+        if (sharedPathState == null)
+        {
+            Debug.LogWarning("[UIManager] Cannot connect sliders to SharedPathState - it is null");
+            return;
+        }
         
         // Speed Slider
         if (speedSlider != null)
@@ -3102,13 +3331,18 @@ public class SpirographUIManager : MonoBehaviour
             lineWidthSlider.onValueChanged.RemoveAllListeners();
             lineWidthSlider.value = sharedPathState.masterLineWidth;
             lineWidthSlider.onValueChanged.AddListener((value) => {
+                // Clamp to safe range
+                value = Mathf.Clamp(value, 0.01f, 2f);
                 sharedPathState.masterLineWidth = value;
-                // Update all agents
-                if (multiAgentManager != null)
+                // Update all agents safely
+                if (multiAgentManager != null && multiAgentManager.agents != null)
                 {
                     foreach (PathAgent agent in multiAgentManager.agents)
                     {
-                        if (agent != null) agent.UpdateLineWidth(value);
+                        if (agent != null)
+                        {
+                            agent.UpdateLineWidth(value);
+                        }
                     }
                 }
             });
@@ -3233,7 +3467,7 @@ public class SpirographUIManager : MonoBehaviour
     /// </summary>
     void OnContextBannerClick()
     {
-        if (multiAgentManager == null || multiAgentManager.agents.Count == 0)
+        if (multiAgentManager == null || multiAgentManager.agents == null || multiAgentManager.agents.Count == 0)
         {
             // No agents - stay on master
             Debug.Log("No agents to browse");
@@ -3242,10 +3476,16 @@ public class SpirographUIManager : MonoBehaviour
         
         if (!perAgentControlMode || selectedAgent == null)
         {
-            // Currently on master → switch to first agent
-            PathAgent firstAgent = multiAgentManager.agents[0];
-            multiAgentManager.SelectAgent(0);
-            Debug.Log("★ Context banner click: Master → Agent #0");
+            // Currently on master → switch to first agent if available
+            if (multiAgentManager.agents.Count > 0 && multiAgentManager.agents[0] != null)
+            {
+                multiAgentManager.SelectAgent(0);
+                Debug.Log("★ Context banner click: Master → Agent #0");
+            }
+            else
+            {
+                Debug.LogWarning("Cannot switch to Agent #0 - no valid agents available");
+            }
         }
         else
         {
@@ -3261,9 +3501,16 @@ public class SpirographUIManager : MonoBehaviour
             }
             else
             {
-                // Go to next agent
-                multiAgentManager.SelectAgent(nextIndex);
-                Debug.Log($"★ Context banner click: Agent #{currentIndex} → Agent #{nextIndex}");
+                // Validate next agent exists before selecting
+                if (multiAgentManager.agents[nextIndex] != null)
+                {
+                    multiAgentManager.SelectAgent(nextIndex);
+                    Debug.Log($"★ Context banner click: Agent #{currentIndex} → Agent #{nextIndex}");
+                }
+                else
+                {
+                    Debug.LogWarning($"Cannot switch to Agent #{nextIndex} - agent is null");
+                }
             }
         }
     }
@@ -3314,14 +3561,14 @@ public class SpirographUIManager : MonoBehaviour
         if (isTransitioningContext) yield break;
         isTransitioningContext = true;
         
-        // Fade out banner
+        // Fade out banner using UIConstants timing
         if (contextBannerGroup != null)
         {
-            yield return StartCoroutine(FadeContextBanner(0f, 0.2f));
+            yield return StartCoroutine(FadeContextBanner(0f, UIConstants.TransitionFast));
         }
         
         // Wait a moment
-        yield return new WaitForSeconds(0.05f);
+        yield return new WaitForSeconds(UIConstants.TransitionVeryFast / 2f);
         
         // Update content
         if (contextBannerText != null)
@@ -3333,10 +3580,10 @@ public class SpirographUIManager : MonoBehaviour
             contextBannerAccent.color = agent.agentColor;
         }
         
-        // Fade in banner with new content
+        // Fade in banner with new content using UIConstants timing
         if (contextBannerGroup != null)
         {
-            yield return StartCoroutine(FadeContextBanner(1f, 0.3f));
+            yield return StartCoroutine(FadeContextBanner(1f, UIConstants.TransitionNormal));
         }
         
         isTransitioningContext = false;
@@ -3350,14 +3597,14 @@ public class SpirographUIManager : MonoBehaviour
         if (isTransitioningContext) yield break;
         isTransitioningContext = true;
         
-        // Fade out banner
+        // Fade out banner using UIConstants timing
         if (contextBannerGroup != null)
         {
-            yield return StartCoroutine(FadeContextBanner(0f, 0.2f));
+            yield return StartCoroutine(FadeContextBanner(0f, UIConstants.TransitionFast));
         }
         
         // Wait a moment
-        yield return new WaitForSeconds(0.05f);
+        yield return new WaitForSeconds(UIConstants.TransitionVeryFast / 2f);
         
         // Update content
         if (contextBannerText != null)
@@ -3366,13 +3613,13 @@ public class SpirographUIManager : MonoBehaviour
         }
         if (contextBannerAccent != null)
         {
-            contextBannerAccent.color = new Color(0.4f, 0.7f, 1f, 1f);
+            contextBannerAccent.color = UIConstants.CyanGlow;
         }
         
-        // Fade in banner with new content
+        // Fade in banner with new content using UIConstants timing
         if (contextBannerGroup != null)
         {
-            yield return StartCoroutine(FadeContextBanner(1f, 0.3f));
+            yield return StartCoroutine(FadeContextBanner(1f, UIConstants.TransitionNormal));
         }
         
         isTransitioningContext = false;
@@ -3391,8 +3638,10 @@ public class SpirographUIManager : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
-            contextBannerGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, t);
+            float t = elapsed / duration;
+            // Use UIConstants smooth easing for better feel
+            float smoothT = UIConstants.SmoothEase(t);
+            contextBannerGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, smoothT);
             yield return null;
         }
         

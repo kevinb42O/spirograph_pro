@@ -8,7 +8,7 @@ public class AnimatedProgressBar : MonoBehaviour
     private float targetFillAmount = 0f;
     
     [Header("Animation Settings")]
-    public float animationSpeed = 5f;
+    public float animationSpeed = UIConstants.AnimationSpeed / 2f; // Slower for smoother progress bars
     public bool smoothAnimation = true;
     
     [Header("Color Gradient")]
@@ -16,7 +16,7 @@ public class AnimatedProgressBar : MonoBehaviour
     
     [Header("Pulse Effect")]
     public bool enablePulse = true;
-    public float pulseSpeed = 2f;
+    public float pulseSpeed = UIConstants.PulseSpeed;
     public float pulseIntensity = 0.1f;
     
     private void Awake()
@@ -44,27 +44,30 @@ public class AnimatedProgressBar : MonoBehaviour
     {
         if (fillImage != null)
         {
-            // Animate fill amount
+            // Animate fill amount with smooth easing
             if (smoothAnimation)
             {
-                currentFillAmount = Mathf.Lerp(currentFillAmount, targetFillAmount, Time.deltaTime * animationSpeed);
+                float t = Time.deltaTime * animationSpeed;
+                float easedT = UIConstants.SmoothEase(Mathf.Clamp01(t));
+                currentFillAmount = Mathf.Lerp(currentFillAmount, targetFillAmount, easedT);
             }
             else
             {
                 currentFillAmount = targetFillAmount;
             }
             
-            // Add pulse effect
+            // Add pulse effect with smooth easing
             float displayFillAmount = currentFillAmount;
             if (enablePulse && currentFillAmount > 0f && currentFillAmount < 1f)
             {
-                float pulse = Mathf.Sin(Time.time * pulseSpeed) * pulseIntensity;
-                displayFillAmount += pulse;
+                float rawPulse = Mathf.Sin(Time.time * pulseSpeed) * pulseIntensity;
+                float smoothPulse = UIConstants.SmoothEase((rawPulse + pulseIntensity) / (2f * pulseIntensity)) * 2f * pulseIntensity - pulseIntensity;
+                displayFillAmount += smoothPulse;
             }
             
             fillImage.fillAmount = Mathf.Clamp01(displayFillAmount);
             
-            // Update color based on progress
+            // Update color based on progress with smooth gradient
             fillImage.color = fillColorGradient.Evaluate(currentFillAmount);
         }
     }
