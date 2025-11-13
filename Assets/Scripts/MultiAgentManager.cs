@@ -90,7 +90,7 @@ public class MultiAgentManager : MonoBehaviour
     
     void Update()
     {
-        if (!isMultiAgentMode || agents.Count == 0) return;
+        if (!isMultiAgentMode || agents == null || agents.Count == 0) return;
         
         // Update global stats
         UpdateGlobalStats();
@@ -138,27 +138,27 @@ public class MultiAgentManager : MonoBehaviour
         // Validate shared state
         if (sharedState == null)
         {
-            Debug.LogError("[MultiAgentManager] No SharedPathState assigned!");
+            Debug.LogError("[MultiAgentManager] No SharedPathState assigned! Cannot spawn agents.");
             return;
         }
         
         // Validate path points
         if (sharedState.pathPoints == null || sharedState.pathPoints.Length == 0)
         {
-            Debug.LogError("[MultiAgentManager] No path points in SharedPathState!");
+            Debug.LogError("[MultiAgentManager] No path points in SharedPathState! Cannot spawn agents.");
             return;
         }
         
-        // Validate agent count
+        // Validate agent count - clamp to safe range
+        agentCount = Mathf.Clamp(agentCount, 1, 16);
         if (agentCount < 1)
         {
-            Debug.LogWarning("[MultiAgentManager] Agent count must be at least 1. Setting to 1.");
+            Debug.LogWarning("[MultiAgentManager] Agent count was less than 1. Clamped to 1.");
             agentCount = 1;
         }
-        if (agentCount > 16)
+        else if (agentCount > 16)
         {
-            Debug.LogWarning("[MultiAgentManager] Agent count cannot exceed 16. Capping at 16.");
-            agentCount = 16;
+            Debug.LogWarning("[MultiAgentManager] Agent count exceeded 16. Clamped to 16.");
         }
         
         // Spawn based on mode
@@ -267,6 +267,19 @@ public class MultiAgentManager : MonoBehaviour
     
     public PathAgent CreateAgent(int index)
     {
+        // Validate shared state before creating agent
+        if (sharedState == null)
+        {
+            Debug.LogError("[MultiAgentManager] Cannot create agent - SharedPathState is null!");
+            return null;
+        }
+        
+        if (sharedState.pathPoints == null || sharedState.pathPoints.Length == 0)
+        {
+            Debug.LogError("[MultiAgentManager] Cannot create agent - no path points available!");
+            return null;
+        }
+        
         GameObject agentObj;
         
         // Create agent GameObject
@@ -298,6 +311,14 @@ public class MultiAgentManager : MonoBehaviour
             agent = agentObj.AddComponent<PathAgent>();
         }
         
+        // Validate agent was successfully created
+        if (agent == null)
+        {
+            Debug.LogError("[MultiAgentManager] Failed to create PathAgent component!");
+            Destroy(agentObj);
+            return null;
+        }
+        
         // Configure agent
         agent.agentIndex = index;
         agent.agentName = $"Agent {index}";
@@ -311,14 +332,22 @@ public class MultiAgentManager : MonoBehaviour
         Renderer renderer = agentObj.GetComponent<Renderer>();
         if (renderer != null)
         {
-            Material mat = new Material(Shader.Find("Standard"));
-            mat.color = agentColor;
-            mat.SetFloat("_Metallic", 0.6f);
-            mat.SetFloat("_Glossiness", 0.8f);
-            mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", agentColor * 1.5f);
-            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
-            renderer.material = mat;
+            Shader standardShader = Shader.Find("Standard");
+            if (standardShader != null)
+            {
+                Material mat = new Material(standardShader);
+                mat.color = agentColor;
+                mat.SetFloat("_Metallic", 0.6f);
+                mat.SetFloat("_Glossiness", 0.8f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", agentColor * 1.5f);
+                mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+                renderer.material = mat;
+            }
+            else
+            {
+                Debug.LogWarning("[MultiAgentManager] Standard shader not found - agent may not render correctly");
+            }
         }
         
         // Add to agents list
@@ -381,13 +410,30 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public void SelectAgent(int index)
     {
-        if (index < 0 || index >= agents.Count)
+        // Validate agents list
+        if (agents == null || agents.Count == 0)
         {
-            Debug.LogWarning($"[MultiAgentManager] Invalid agent index: {index}");
+            Debug.LogWarning("[MultiAgentManager] Cannot select agent - no agents exist.");
+            selectedAgent = null;
             return;
         }
         
-        selectedAgent = agents[index];
+        // Validate index
+        if (index < 0 || index >= agents.Count)
+        {
+            Debug.LogWarning($"[MultiAgentManager] Invalid agent index: {index}. Valid range is 0-{agents.Count - 1}");
+            return;
+        }
+        
+        // Validate agent at index
+        PathAgent agent = agents[index];
+        if (agent == null)
+        {
+            Debug.LogWarning($"[MultiAgentManager] Agent at index {index} is null!");
+            return;
+        }
+        
+        selectedAgent = agent;
         OnAgentSelected?.Invoke(selectedAgent);
         
         Debug.Log($"[MultiAgentManager] Selected Agent {index}");
@@ -398,9 +444,20 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public void PauseAgent(int index)
     {
-        if (index >= 0 && index < agents.Count)
+        if (agents == null || index < 0 || index >= agents.Count)
         {
-            agents[index].Pause();
+            Debug.LogWarning($"[MultiAgentManager] Cannot pause agent - invalid index: {index}");
+            return;
+        }
+        
+        PathAgent agent = agents[index];
+        if (agent != null)
+        {
+            agent.Pause();
+        }
+        else
+        {
+            Debug.LogWarning($"[MultiAgentManager] Cannot pause agent {index} - agent is null");
         }
     }
     
@@ -409,9 +466,20 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public void ResumeAgent(int index)
     {
-        if (index >= 0 && index < agents.Count)
+        if (agents == null || index < 0 || index >= agents.Count)
         {
-            agents[index].Resume();
+            Debug.LogWarning($"[MultiAgentManager] Cannot resume agent - invalid index: {index}");
+            return;
+        }
+        
+        PathAgent agent = agents[index];
+        if (agent != null)
+        {
+            agent.Resume();
+        }
+        else
+        {
+            Debug.LogWarning($"[MultiAgentManager] Cannot resume agent {index} - agent is null");
         }
     }
     
@@ -420,9 +488,18 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public void PauseAllAgents()
     {
+        if (agents == null || agents.Count == 0)
+        {
+            Debug.LogWarning("[MultiAgentManager] No agents to pause.");
+            return;
+        }
+        
         foreach (PathAgent agent in agents)
         {
-            agent.Pause();
+            if (agent != null)
+            {
+                agent.Pause();
+            }
         }
     }
     
@@ -431,14 +508,22 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public void StartAllAgents()
     {
+        if (agents == null || agents.Count == 0)
+        {
+            Debug.LogWarning("[MultiAgentManager] No agents to start.");
+            return;
+        }
+        
+        int startedCount = 0;
         foreach (PathAgent agent in agents)
         {
             if (agent != null && agent.status == PathAgent.AgentStatus.Idle)
             {
                 agent.StartDrawing();
+                startedCount++;
             }
         }
-        Debug.Log($"[MultiAgentManager] Started all idle agents");
+        Debug.Log($"[MultiAgentManager] Started {startedCount} idle agent(s)");
     }
     
     /// <summary>
@@ -446,13 +531,22 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public void ResumeAllAgents()
     {
+        if (agents == null || agents.Count == 0)
+        {
+            Debug.LogWarning("[MultiAgentManager] No agents to resume.");
+            return;
+        }
+        
+        int resumedCount = 0;
         foreach (PathAgent agent in agents)
         {
             if (agent != null && agent.status == PathAgent.AgentStatus.Paused)
             {
                 agent.Resume();
+                resumedCount++;
             }
         }
+        Debug.Log($"[MultiAgentManager] Resumed {resumedCount} paused agent(s)");
     }
     
     /// <summary>
@@ -460,13 +554,25 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public void ResetAllAgents()
     {
+        if (agents == null || agents.Count == 0)
+        {
+            Debug.LogWarning("[MultiAgentManager] No agents to reset.");
+            ResetGlobalStats();
+            return;
+        }
+        
+        int resetCount = 0;
         foreach (PathAgent agent in agents)
         {
-            agent.ResetAgent();
+            if (agent != null)
+            {
+                agent.ResetAgent();
+                resetCount++;
+            }
         }
         
         ResetGlobalStats();
-        Debug.Log("[MultiAgentManager] All agents reset");
+        Debug.Log($"[MultiAgentManager] Reset {resetCount} agent(s)");
     }
     
     /// <summary>
@@ -548,6 +654,19 @@ public class MultiAgentManager : MonoBehaviour
     {
         colorMode = mode;
         
+        // Validate before recoloring
+        if (agents == null || agents.Count == 0)
+        {
+            Debug.LogWarning("[MultiAgentManager] No agents to recolor.");
+            return;
+        }
+        
+        if (sharedState == null)
+        {
+            Debug.LogWarning("[MultiAgentManager] Cannot recolor agents - SharedPathState is null.");
+            return;
+        }
+        
         // Recolor existing agents
         for (int i = 0; i < agents.Count; i++)
         {
@@ -557,6 +676,8 @@ public class MultiAgentManager : MonoBehaviour
                 agents[i].SetColor(newColor);
             }
         }
+        
+        Debug.Log($"[MultiAgentManager] Color mode changed to {mode}");
     }
     
     /// <summary>
@@ -579,11 +700,11 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public PathAgent GetAgent(int index)
     {
-        if (index >= 0 && index < agents.Count)
+        if (agents == null || index < 0 || index >= agents.Count)
         {
-            return agents[index];
+            return null;
         }
-        return null;
+        return agents[index];
     }
     
     /// <summary>
@@ -591,6 +712,10 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public List<PathAgent> GetAllAgents()
     {
+        if (agents == null)
+        {
+            return new List<PathAgent>();
+        }
         return new List<PathAgent>(agents);
     }
     
@@ -599,16 +724,46 @@ public class MultiAgentManager : MonoBehaviour
     /// </summary>
     public void RemoveAgent(int index)
     {
+        // Validate agents list
+        if (agents == null || agents.Count == 0)
+        {
+            Debug.LogWarning("[MultiAgentManager] Cannot remove agent - no agents exist");
+            return;
+        }
+        
+        // Validate index
         if (index < 0 || index >= agents.Count)
         {
-            Debug.LogWarning($"[MultiAgentManager] Cannot remove agent - invalid index: {index}");
+            Debug.LogWarning($"[MultiAgentManager] Cannot remove agent - invalid index: {index}. Valid range: 0-{agents.Count - 1}");
             return;
         }
         
         PathAgent agent = agents[index];
-        if (agent != null)
+        
+        // Clear selection if removed agent was selected
+        if (selectedAgent == agent)
         {
-            // Destroy the agent GameObject
+            selectedAgent = null;
+            
+            // Notify UI Manager to exit per-agent control mode
+            SpirographUIManager uiManager = FindFirstObjectByType<SpirographUIManager>();
+            if (uiManager != null && uiManager.perAgentControlMode)
+            {
+                Debug.Log("★ Selected agent was deleted - returning to master control");
+                try
+                {
+                    uiManager.ExitPerAgentControl();
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[MultiAgentManager] Error exiting per-agent control: {e.Message}");
+                }
+            }
+        }
+        
+        // Destroy the agent GameObject if it exists
+        if (agent != null && agent.gameObject != null)
+        {
             Destroy(agent.gameObject);
         }
         
@@ -622,31 +777,13 @@ public class MultiAgentManager : MonoBehaviour
             {
                 agents[i].agentIndex = i;
                 agents[i].agentName = $"Agent {i}";
-                agents[i].gameObject.name = $"Agent_{i}";
+                if (agents[i].gameObject != null)
+                {
+                    agents[i].gameObject.name = $"Agent_{i}";
+                }
             }
         }
         
-        // Clear selection if removed agent was selected
-        if (selectedAgent == agent)
-        {
-            selectedAgent = null;
-            
-            // Notify UI Manager to exit per-agent control mode
-            SpirographUIManager uiManager = FindFirstObjectByType<SpirographUIManager>();
-            if (uiManager != null && uiManager.perAgentControlMode)
-            {
-                Debug.Log("★ Selected agent was deleted - returning to master control");
-                uiManager.ExitPerAgentControl();
-            }
-            
-            // Optional: Select first agent if available
-            // (Commented out because it's better to return to master control)
-            // if (agents.Count > 0)
-            // {
-            //     SelectAgent(0);
-            // }
-        }
-        
-        Debug.Log($"[MultiAgentManager] Agent {index} removed. {agents.Count} agents remaining.");
+        Debug.Log($"[MultiAgentManager] Agent {index} removed. {agents.Count} agent(s) remaining.");
     }
 }

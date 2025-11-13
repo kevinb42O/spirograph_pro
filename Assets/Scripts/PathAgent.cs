@@ -164,20 +164,22 @@ public class PathAgent : MonoBehaviour
         // Null checks for safety
         if (sharedState == null)
         {
-            Debug.LogWarning($"[PathAgent] Agent {agentIndex}: SharedPathState is null!");
+            Debug.LogWarning($"[PathAgent] Agent {agentIndex}: SharedPathState is null! Disabling agent.");
+            enabled = false;
             return;
         }
         
         // Re-cache if path cache is empty or path changed
-        if (staticPathCache.Count == 0)
+        if (staticPathCache == null || staticPathCache.Count == 0)
         {
             Debug.LogWarning($"[PathAgent] Agent {agentIndex}: Path cache is empty! Recaching...");
             CacheStaticPath();
             CalculateTotalPathLength();
             
-            if (staticPathCache.Count == 0)
+            if (staticPathCache == null || staticPathCache.Count == 0)
             {
-                Debug.LogError($"[PathAgent] Agent {agentIndex}: Still no path points after recache!");
+                Debug.LogError($"[PathAgent] Agent {agentIndex}: Still no path points after recache! Disabling agent.");
+                enabled = false;
                 return;
             }
         }
@@ -206,28 +208,46 @@ public class PathAgent : MonoBehaviour
         
         if (useIndividualSettings)
         {
-            // Use this agent's individual settings
-            speed = agentSpeed;
-            rotationSpeed = agentRotationSpeed;
-            penDistance = agentPenDistance;
-            targetCycles = agentCycles;
+            // Use this agent's individual settings with safe clamping
+            speed = Mathf.Max(0f, agentSpeed); // Prevent negative speed
+            rotationSpeed = Mathf.Clamp(agentRotationSpeed, 0f, 1f);
+            penDistance = Mathf.Max(0f, agentPenDistance); // Prevent negative distance
+            targetCycles = Mathf.Max(1, agentCycles); // At least 1 cycle
         }
         else
         {
-            // Use master settings from shared state
-            speed = sharedState.masterSpeed * speedMultiplier;
-            rotationSpeed = sharedState.masterRotationSpeed;
-            penDistance = sharedState.masterPenDistance;
-            targetCycles = sharedState.masterCycles;
+            // Use master settings from shared state with safe defaults
+            if (sharedState != null)
+            {
+                speed = Mathf.Max(0f, sharedState.masterSpeed * speedMultiplier); // Prevent negative
+                rotationSpeed = Mathf.Clamp(sharedState.masterRotationSpeed, 0f, 1f);
+                penDistance = Mathf.Max(0f, sharedState.masterPenDistance);
+                targetCycles = Mathf.Max(1, sharedState.masterCycles);
+            }
+            else
+            {
+                // Fallback defaults if shared state becomes null
+                speed = 0f;
+                rotationSpeed = 0.5f;
+                penDistance = 0.3f;
+                targetCycles = 1;
+                Debug.LogWarning($"[PathAgent] Agent {agentIndex}: SharedPathState is null, using fallback values");
+            }
         }
         
-        // Calculate movement for this frame
+        // Calculate movement for this frame - prevent NaN/Infinity
         float frameDistance = speed * Time.deltaTime;
+        if (float.IsNaN(frameDistance) || float.IsInfinity(frameDistance))
+        {
+            Debug.LogWarning($"[PathAgent] Agent {agentIndex}: Invalid frame distance, resetting to 0");
+            frameDistance = 0f;
+        }
+        
         currentDistance += frameDistance;
         totalDistanceTraveled += frameDistance;
         
-        // Handle cycle completion
-        if (currentDistance >= totalPathLength)
+        // Handle cycle completion - prevent division by zero
+        if (totalPathLength > 0.001f && currentDistance >= totalPathLength)
         {
             currentCycle++;
             currentDistance = currentDistance % totalPathLength;
@@ -239,6 +259,12 @@ public class PathAgent : MonoBehaviour
                 Debug.Log($"[PathAgent] Agent {agentIndex} completed {targetCycles} cycles!");
                 return;
             }
+        }
+        else if (totalPathLength <= 0.001f)
+        {
+            Debug.LogWarning($"[PathAgent] Agent {agentIndex}: Path length too small ({totalPathLength}), stopping agent");
+            status = AgentStatus.Completed;
+            return;
         }
         
         // Update segment progress
@@ -278,7 +304,19 @@ public class PathAgent : MonoBehaviour
     
     void CacheStaticPath()
     {
+        if (staticPathCache == null)
+        {
+            staticPathCache = new List<Vector3>();
+        }
+        
         staticPathCache.Clear();
+        
+        if (sharedState == null || sharedState.pathPoints == null)
+        {
+            Debug.LogWarning($"[PathAgent] Agent {agentIndex}: Cannot cache path - SharedPathState or pathPoints is null");
+            return;
+        }
+        
         foreach (Transform point in sharedState.pathPoints)
         {
             if (point != null)
@@ -291,20 +329,45 @@ public class PathAgent : MonoBehaviour
     void CalculateTotalPathLength()
     {
         totalPathLength = 0f;
+        
+        if (staticPathCache == null || staticPathCache.Count < 2)
+        {
+            Debug.LogWarning($"[PathAgent] Agent {agentIndex}: Cannot calculate path length - insufficient points");
+            return;
+        }
+        
         for (int i = 1; i < staticPathCache.Count; i++)
         {
             totalPathLength += Vector3.Distance(staticPathCache[i - 1], staticPathCache[i]);
         }
+        
         // Add closing segment
         if (staticPathCache.Count > 0)
         {
             totalPathLength += Vector3.Distance(staticPathCache[staticPathCache.Count - 1], staticPathCache[0]);
         }
+        
+        // Validate result
+        if (float.IsNaN(totalPathLength) || float.IsInfinity(totalPathLength) || totalPathLength < 0f)
+        {
+            Debug.LogError($"[PathAgent] Agent {agentIndex}: Invalid path length calculated: {totalPathLength}");
+            totalPathLength = 0f;
+        }
     }
     
     Vector3 GetPointOnPath(float distance)
     {
-        if (staticPathCache.Count == 0) return Vector3.zero;
+        if (staticPathCache == null || staticPathCache.Count == 0)
+        {
+            Debug.LogWarning($"[PathAgent] Agent {agentIndex}: No path cache available");
+            return Vector3.zero;
+        }
+        
+        // Clamp distance to valid range
+        if (totalPathLength > 0)
+        {
+            distance = Mathf.Clamp(distance, 0f, totalPathLength);
+        }
         
         float accumulatedDistance = 0f;
         for (int i = 1; i < staticPathCache.Count; i++)
