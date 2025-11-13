@@ -50,8 +50,13 @@ public class SharedPathState : MonoBehaviour
     [Tooltip("Number of active agents currently reading from this state")]
     public int activeAgentCount = 0;
     
+    [Header("Performance Optimizations")]
+    [Tooltip("Cached rainbow colors for all 16 possible agents")]
+    private Color[] cachedRainbowColors = null;
+    
     /// <summary>
     /// Get a color for an agent based on the color mode and agent index
+    /// Performance: Caches rainbow colors to avoid repeated HSV-to-RGB conversions
     /// </summary>
     public Color GetAgentColor(MultiAgentManager.AgentColorMode colorMode, int agentIndex, int totalAgents)
     {
@@ -61,9 +66,17 @@ public class SharedPathState : MonoBehaviour
                 return masterLineColor;
                 
             case MultiAgentManager.AgentColorMode.Rainbow:
-                // Distribute agents evenly across the hue spectrum
-                float hue = (float)agentIndex / totalAgents;
-                return Color.HSVToRGB(hue, 0.8f, 1f);
+                // Performance: Use cached rainbow colors to avoid expensive HSV-to-RGB conversions
+                if (cachedRainbowColors == null || cachedRainbowColors.Length != totalAgents)
+                {
+                    cachedRainbowColors = new Color[totalAgents];
+                    for (int i = 0; i < totalAgents; i++)
+                    {
+                        float hue = (float)i / totalAgents;
+                        cachedRainbowColors[i] = Color.HSVToRGB(hue, 0.8f, 1f);
+                    }
+                }
+                return cachedRainbowColors[agentIndex];
                 
             case MultiAgentManager.AgentColorMode.Individual:
                 // Each agent gets a distinct color from a predefined palette

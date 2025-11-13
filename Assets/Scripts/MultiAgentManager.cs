@@ -1,6 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Linq;
+// Performance: Removed System.Linq to avoid LINQ allocations
 
 /// <summary>
 /// Manages multiple PathAgents drawing simultaneously on a shared path.

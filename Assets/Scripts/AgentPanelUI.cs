@@ -83,6 +83,9 @@ public class AgentPanelUI : MonoBehaviour
     private float updateInterval = 0.1f;
     private float timeSinceLastUpdate = 0f;
     
+    // Performance: Reusable StringBuilder to reduce string allocations
+    private System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder(128);
+    
     /// <summary>
     /// Represents a single agent card in the roster
     /// </summary>
@@ -1371,9 +1374,12 @@ public class AgentPanelUI : MonoBehaviour
         
         card.progressBar.value = totalProgress;
         
-        // Update stats text
-        float speedMultiplier = agent.speedMultiplier;
-        card.progressText.text = $"Progress: {(totalProgress * 100f):F1}% | Speed: {speedMultiplier:F1}x";
+        // Update stats text - Performance: Use StringBuilder to reduce allocations
+        stringBuilder.Clear();
+        stringBuilder.Append("Progress: ").Append((totalProgress * 100f).ToString("F1"))
+                     .Append("% | Speed: ").Append(agent.speedMultiplier.ToString("F1"))
+                     .Append("x");
+        card.progressText.text = stringBuilder.ToString();
     }
     
     /// <summary>
@@ -1390,14 +1396,22 @@ public class AgentPanelUI : MonoBehaviour
     
     /// <summary>
     /// Update global statistics display
+    /// Performance: Uses StringBuilder to reduce string allocations
     /// </summary>
     void UpdateGlobalStats()
     {
         if (agentManager == null || globalStatsText == null) return;
         
-        globalStatsText.text = $"Active: {agentManager.activeAgentCount} | Paused: {agentManager.pausedAgentCount} | Completed: {agentManager.completedAgentCount}\n" +
-                               $"Avg Progress: {(agentManager.averageProgress * 100f):F1}%\n" +
-                               $"Total Distance: {agentManager.totalDistanceCovered:F1}m";
+        // Performance: Use StringBuilder to avoid string allocation
+        stringBuilder.Clear();
+        stringBuilder.Append("Active: ").Append(agentManager.activeAgentCount)
+                     .Append(" | Paused: ").Append(agentManager.pausedAgentCount)
+                     .Append(" | Completed: ").Append(agentManager.completedAgentCount)
+                     .Append("\nAvg Progress: ").Append((agentManager.averageProgress * 100f).ToString("F1"))
+                     .Append("%\nTotal Distance: ").Append(agentManager.totalDistanceCovered.ToString("F1"))
+                     .Append("m");
+        
+        globalStatsText.text = stringBuilder.ToString();
     }
     
     /// <summary>
