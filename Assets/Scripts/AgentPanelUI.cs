@@ -66,6 +66,10 @@ public class AgentPanelUI : MonoBehaviour
     // Agent card prefab (created at runtime)
     private GameObject agentCardPrefab;
     
+    // Performance: Object pooling for agent cards
+    private List<AgentCard> agentCardPool = new List<AgentCard>();
+    private const int INITIAL_POOL_SIZE = 16; // Max agents = 16
+    
     // Add Agent Button
     private Button addAgentButton;
     
@@ -85,6 +89,9 @@ public class AgentPanelUI : MonoBehaviour
     
     // Performance: Reusable StringBuilder to reduce string allocations
     private System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder(128);
+    
+    // Performance: Track if panel needs rebuild to batch Canvas updates
+    private bool needsRebuild = false;
     
     /// <summary>
     /// Represents a single agent card in the roster
@@ -131,6 +138,8 @@ public class AgentPanelUI : MonoBehaviour
         }
         
         Debug.Log("✓ AgentPanelUI initialized - panel will be shown when multi-agent mode is enabled");
+        
+        // Performance: Pre-warm object pool (done lazily when panel is created)
     }
     
     void Update()
@@ -140,6 +149,14 @@ public class AgentPanelUI : MonoBehaviour
         if (timeSinceLastUpdate >= updateInterval)
         {
             timeSinceLastUpdate = 0f;
+            
+            // Performance: Batch UI updates to reduce Canvas rebuilds
+            if (needsRebuild)
+            {
+                Canvas.ForceUpdateCanvases();
+                needsRebuild = false;
+            }
+            
             UpdateAllAgentCards();
             UpdateGlobalStats();
         }
@@ -944,6 +961,7 @@ public class AgentPanelUI : MonoBehaviour
     
     /// <summary>
     /// Clear all agent cards
+    /// Performance: Return cards to pool instead of destroying
     /// </summary>
     void ClearAgentList()
     {
@@ -951,18 +969,107 @@ public class AgentPanelUI : MonoBehaviour
         {
             if (card.cardObject != null)
             {
-                Destroy(card.cardObject);
+                // Return to pool instead of destroying
+                card.cardObject.SetActive(false);
+                agentCardPool.Add(card);
             }
         }
         agentCards.Clear();
     }
     
     /// <summary>
+    /// Get an agent card from the pool or create a new one
+    /// Performance: Object pooling to reduce instantiation overhead
+    /// </summary>
+    AgentCard GetPooledAgentCard()
+    {
+        // Try to get from pool
+        if (agentCardPool.Count > 0)
+        {
+            AgentCard card = agentCardPool[agentCardPool.Count - 1];
+            agentCardPool.RemoveAt(agentCardPool.Count - 1);
+            card.cardObject.SetActive(true);
+            return card;
+        }
+        
+        // Pool empty, return null to create new card
+        return null;
+    }
+    
+    /// <summary>
     /// Create a card for a single agent
+    /// Performance: Uses object pooling to reduce instantiation overhead
     /// </summary>
     void CreateAgentCard(PathAgent agent, int index)
     {
-        // Card container
+        // Try to get from pool first (Performance optimization)
+        AgentCard pooledCard = GetPooledAgentCard();
+        if (pooledCard != null)
+        {
+            // Reuse pooled card
+            pooledCard.agent = agent;
+            pooledCard.cardObject.name = $"AgentCard_{index}";
+            
+            // Update UI elements
+            Text nameText = pooledCard.cardObject.transform.Find("TopRow")?.GetComponent<Text>();
+            if (nameText != null)
+            {
+                nameText.text = $"Agent {index}";
+                nameText.color = agent.agentColor;
+            }
+            
+            // Update progress bar fill color
+            if (pooledCard.progressBar != null && pooledCard.progressBar.fillRect != null)
+            {
+                Image fillImage = pooledCard.progressBar.fillRect.GetComponent<Image>();
+                if (fillImage != null)
+                {
+                    fillImage.color = agent.agentColor;
+                }
+            }
+            
+            // Update checkmark color
+            if (pooledCard.selectToggle != null && pooledCard.selectToggle.graphic != null)
+            {
+                pooledCard.selectToggle.graphic.color = agent.agentColor;
+            }
+            
+            // Re-parent to content
+            pooledCard.cardObject.transform.SetParent(agentListContent.transform, false);
+            
+            // Update button callbacks
+            int agentIndex = index;
+            pooledCard.focusButton.onClick.RemoveAllListeners();
+            pooledCard.pauseResumeButton.onClick.RemoveAllListeners();
+            
+            Text focusText = pooledCard.focusButton.GetComponentInChildren<Text>();
+            Text pauseText = pooledCard.pauseResumeButton.GetComponentInChildren<Text>();
+            
+            pooledCard.focusButton.onClick.AddListener(() => OnIdleButtonClicked(agentIndex, focusText));
+            pooledCard.pauseResumeButton.onClick.AddListener(() => OnPauseResumeButtonClicked(agentIndex, pauseText));
+            
+            pooledCard.selectToggle.onValueChanged.RemoveAllListeners();
+            pooledCard.selectToggle.onValueChanged.AddListener((isOn) => {
+                if (isOn) OnAgentCardSelected(agentIndex);
+            });
+            
+            // Find and update remove button
+            Transform removeButtonTransform = pooledCard.cardObject.transform.Find("RemoveButton");
+            if (removeButtonTransform != null)
+            {
+                Button removeButton = removeButtonTransform.GetComponent<Button>();
+                if (removeButton != null)
+                {
+                    removeButton.onClick.RemoveAllListeners();
+                    removeButton.onClick.AddListener(() => OnRemoveButtonClicked(agentIndex));
+                }
+            }
+            
+            agentCards.Add(pooledCard);
+            return;
+        }
+        
+        // Card container - create new card if pool is empty
         GameObject cardObj = new GameObject($"AgentCard_{index}");
         cardObj.transform.SetParent(agentListContent.transform, false);
         RectTransform cardRect = cardObj.AddComponent<RectTransform>();

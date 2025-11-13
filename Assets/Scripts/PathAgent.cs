@@ -112,6 +112,20 @@ public class PathAgent : MonoBehaviour
     private List<float> segmentLengths = new List<float>();
     private List<float> cumulativeLengths = new List<float>();
     
+    // Performance: LOD system for trail quality based on camera distance
+    [Header("Performance - LOD System")]
+    [Tooltip("Enable LOD (Level of Detail) system for trails")]
+    public bool enableTrailLOD = true;
+    [Tooltip("Distance thresholds for LOD levels (near, medium, far)")]
+    public float[] lodDistances = new float[] { 10f, 25f, 50f };
+    [Tooltip("Trail time multipliers for each LOD level (1.0 = full quality)")]
+    public float[] lodTrailTimes = new float[] { 1.0f, 0.6f, 0.3f };
+    [Tooltip("Min vertex distance multipliers for each LOD level")]
+    public float[] lodMinVertexDistances = new float[] { 0.01f, 0.05f, 0.15f };
+    private int currentLODLevel = 0;
+    private float lodUpdateTimer = 0f;
+    private const float LOD_UPDATE_INTERVAL = 0.5f; // Update LOD every 0.5s
+    
     void Start()
     {
         // Validate shared state
@@ -211,6 +225,17 @@ public class PathAgent : MonoBehaviour
         
         // Update elapsed time
         elapsedTime += Time.deltaTime;
+        
+        // Performance: Update LOD based on camera distance (low frequency)
+        if (enableTrailLOD)
+        {
+            lodUpdateTimer += Time.deltaTime;
+            if (lodUpdateTimer >= LOD_UPDATE_INTERVAL)
+            {
+                lodUpdateTimer = 0f;
+                UpdateTrailLOD();
+            }
+        }
         
         // Read motion parameters - use per-agent settings if this agent has individual control
         float speed, rotationSpeed, penDistance;
@@ -586,6 +611,68 @@ public class PathAgent : MonoBehaviour
         {
             trailRenderer.startWidth = width;
             trailRenderer.endWidth = width;
+        }
+    }
+    
+    /// <summary>
+    /// Update trail LOD based on camera distance
+    /// Performance: Reduces trail quality for distant agents
+    /// </summary>
+    void UpdateTrailLOD()
+    {
+        if (trailRenderer == null) return;
+        
+        // Find main camera
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) return;
+        
+        // Calculate distance from camera to this agent
+        float distance = Vector3.Distance(mainCamera.transform.position, transform.position);
+        
+        // Determine LOD level based on distance
+        int newLODLevel = 0;
+        for (int i = 0; i < lodDistances.Length; i++)
+        {
+            if (distance > lodDistances[i])
+            {
+                newLODLevel = i + 1;
+            }
+            else
+            {
+                break;
+            }
+        }
+        
+        // Clamp to available LOD levels
+        newLODLevel = Mathf.Min(newLODLevel, lodTrailTimes.Length - 1);
+        
+        // Only update if LOD level changed
+        if (newLODLevel != currentLODLevel)
+        {
+            currentLODLevel = newLODLevel;
+            
+            // Apply LOD settings to trail renderer
+            if (currentLODLevel < lodTrailTimes.Length)
+            {
+                trailRenderer.time = 1000f * lodTrailTimes[currentLODLevel];
+            }
+            
+            if (currentLODLevel < lodMinVertexDistances.Length)
+            {
+                trailRenderer.minVertexDistance = lodMinVertexDistances[currentLODLevel];
+            }
+            
+            // Optionally reduce corner/cap vertices for far LOD levels
+            if (currentLODLevel >= 2)
+            {
+                trailRenderer.numCornerVertices = 2;
+                trailRenderer.numCapVertices = 2;
+            }
+            else
+            {
+                trailRenderer.numCornerVertices = 5;
+                trailRenderer.numCapVertices = 5;
+            }
         }
     }
     
