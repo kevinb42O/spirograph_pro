@@ -38,6 +38,26 @@ public class CameraController : MonoBehaviour
     [Tooltip("Smoothly transition into orbit mode")]
     [Range(0.1f, 5f)] public float orbitTransitionSpeed = 1f;
     
+    [Header("Camera Shake")]
+    public bool enableIdleShake = false;
+    [Range(0f, 0.5f)] public float idleShakeAmount = 0.02f;
+    [Range(0f, 10f)] public float idleShakeSpeed = 1f;
+    [Range(0f, 2f)] public float impactShakeAmount = 0.3f;
+    [Range(0f, 1f)] public float impactShakeDuration = 0.5f;
+    
+    [Header("Auto-Framing")]
+    public bool autoFraming = false;
+    [Range(1f, 50f)] public float autoFramingPadding = 5f;
+    [Range(0.1f, 10f)] public float autoFramingSpeed = 2f;
+    
+    [Header("Recording Mode")]
+    public bool recordingMode = false;
+    public bool lockUIInRecordingMode = true;
+    
+    [Header("Advanced Focus")]
+    public bool focusOnMultipleAgents = false;
+    public float focusTransitionSpeed = 3f;
+    
     [Header("UI")]
     public bool createUI = true;
     
@@ -83,6 +103,17 @@ public class CameraController : MonoBehaviour
     
     // UI EventSystem management
     private EventSystem eventSystem;
+    
+    // Camera shake variables
+    private Vector3 shakeOffset = Vector3.zero;
+    private float shakeTimer = 0f;
+    private bool isShaking = false;
+    
+    // Auto-framing variables
+    private float targetAutoFrameDistance = 15f;
+    
+    // Advanced focus variables
+    private Vector3 focusPoint = Vector3.zero;
     
     void Start()
     {
@@ -201,6 +232,9 @@ public class CameraController : MonoBehaviour
     
     void LateUpdate()
     {
+        // Update auto-framing before camera movement
+        UpdateAutoFraming();
+        
         // Handle auto orbit mode
         if (isOrbiting)
         {
@@ -217,6 +251,12 @@ public class CameraController : MonoBehaviour
             {
                 UpdateSmoothFollowMode();
             }
+        }
+        
+        // Apply camera shake after positioning (if enabled)
+        if (enableIdleShake || isShaking)
+        {
+            ApplyCameraShake();
         }
     }
     
@@ -704,5 +744,249 @@ public class CameraController : MonoBehaviour
             
             autoOrbitButton.colors = orbitColors;
         }
+    }
+    
+    // ============================================================
+    // ADVANCED CAMERA FEATURES
+    // ============================================================
+    
+    /// <summary>
+    /// Apply camera shake effect
+    /// </summary>
+    void ApplyCameraShake()
+    {
+        // Idle shake - subtle organic feel
+        if (enableIdleShake && !isShaking)
+        {
+            float time = Time.time * idleShakeSpeed;
+            shakeOffset = new Vector3(
+                Mathf.PerlinNoise(time, 0f) - 0.5f,
+                Mathf.PerlinNoise(0f, time) - 0.5f,
+                Mathf.PerlinNoise(time, time) - 0.5f
+            ) * idleShakeAmount;
+        }
+        
+        // Impact shake - larger temporary shake
+        if (isShaking)
+        {
+            shakeTimer -= Time.deltaTime;
+            
+            if (shakeTimer <= 0f)
+            {
+                isShaking = false;
+                shakeOffset = Vector3.zero;
+            }
+            else
+            {
+                // Decay shake over time
+                float intensity = shakeTimer / impactShakeDuration;
+                shakeOffset = Random.insideUnitSphere * impactShakeAmount * intensity;
+            }
+        }
+        
+        // Apply shake offset to camera position
+        transform.position += shakeOffset;
+    }
+    
+    /// <summary>
+    /// Trigger an impact shake effect
+    /// </summary>
+    public void TriggerImpactShake()
+    {
+        isShaking = true;
+        shakeTimer = impactShakeDuration;
+        Debug.Log("Camera: Impact shake triggered");
+    }
+    
+    /// <summary>
+    /// Calculate center of mass of all agents
+    /// </summary>
+    Vector3 CalculateAgentsCenterOfMass()
+    {
+        PathAgent[] agents = FindObjectsByType<PathAgent>(FindObjectsSortMode.None);
+        
+        if (agents.Length == 0)
+        {
+            return target != null ? target.position : Vector3.zero;
+        }
+        
+        Vector3 sum = Vector3.zero;
+        int count = 0;
+        
+        foreach (PathAgent agent in agents)
+        {
+            if (agent != null && agent.gameObject.activeInHierarchy)
+            {
+                sum += agent.transform.position;
+                count++;
+            }
+        }
+        
+        return count > 0 ? sum / count : (target != null ? target.position : Vector3.zero);
+    }
+    
+    /// <summary>
+    /// Update auto-framing to keep all agents visible
+    /// </summary>
+    void UpdateAutoFraming()
+    {
+        if (!autoFraming) return;
+        
+        PathAgent[] agents = FindObjectsByType<PathAgent>(FindObjectsSortMode.None);
+        
+        if (agents.Length == 0) return;
+        
+        // Calculate bounding sphere of all agents
+        Vector3 center = CalculateAgentsCenterOfMass();
+        float maxDistance = 0f;
+        
+        foreach (PathAgent agent in agents)
+        {
+            if (agent != null && agent.gameObject.activeInHierarchy)
+            {
+                float distance = Vector3.Distance(center, agent.transform.position);
+                if (distance > maxDistance)
+                {
+                    maxDistance = distance;
+                }
+            }
+        }
+        
+        // Calculate required distance to fit all agents in view
+        // Account for FOV and padding
+        float fovRadians = fieldOfView * Mathf.Deg2Rad;
+        float requiredDistance = (maxDistance + autoFramingPadding) / Mathf.Tan(fovRadians / 2f);
+        
+        // Clamp to min/max distance
+        targetAutoFrameDistance = Mathf.Clamp(requiredDistance, minDistance, maxDistance);
+        
+        // Smoothly adjust distance
+        targetDistance = Mathf.Lerp(targetDistance, targetAutoFrameDistance, autoFramingSpeed * Time.deltaTime);
+        
+        // Update focus point for multi-agent focus
+        if (focusOnMultipleAgents)
+        {
+            focusPoint = Vector3.Lerp(focusPoint, center, focusTransitionSpeed * Time.deltaTime);
+            targetOffset = focusPoint;
+        }
+    }
+    
+    /// <summary>
+    /// Toggle recording mode
+    /// </summary>
+    public void ToggleRecordingMode()
+    {
+        recordingMode = !recordingMode;
+        
+        if (recordingMode)
+        {
+            Debug.Log("🎥 Recording Mode: ENABLED");
+            
+            // Lock UI if enabled
+            if (lockUIInRecordingMode)
+            {
+                SpirographUIManager uiManager = FindFirstObjectByType<SpirographUIManager>();
+                if (uiManager != null && uiManager.controlPanel != null)
+                {
+                    CanvasGroup canvasGroup = uiManager.controlPanel.GetComponent<CanvasGroup>();
+                    if (canvasGroup != null)
+                    {
+                        canvasGroup.alpha = 0f;
+                        canvasGroup.interactable = false;
+                        canvasGroup.blocksRaycasts = false;
+                    }
+                }
+                
+                // Also hide the hide/show button
+                GameObject hideButton = GameObject.Find("HideUIButton");
+                if (hideButton != null)
+                {
+                    CanvasGroup buttonGroup = hideButton.GetComponent<CanvasGroup>();
+                    if (buttonGroup == null) buttonGroup = hideButton.AddComponent<CanvasGroup>();
+                    buttonGroup.alpha = 0f;
+                    buttonGroup.interactable = false;
+                    buttonGroup.blocksRaycasts = false;
+                }
+            }
+        }
+        else
+        {
+            Debug.Log("🎥 Recording Mode: DISABLED");
+            
+            // Unlock UI
+            if (lockUIInRecordingMode)
+            {
+                SpirographUIManager uiManager = FindFirstObjectByType<SpirographUIManager>();
+                if (uiManager != null && uiManager.controlPanel != null)
+                {
+                    CanvasGroup canvasGroup = uiManager.controlPanel.GetComponent<CanvasGroup>();
+                    if (canvasGroup != null)
+                    {
+                        canvasGroup.alpha = 1f;
+                        canvasGroup.interactable = true;
+                        canvasGroup.blocksRaycasts = true;
+                    }
+                }
+                
+                // Show the hide/show button
+                GameObject hideButton = GameObject.Find("HideUIButton");
+                if (hideButton != null)
+                {
+                    CanvasGroup buttonGroup = hideButton.GetComponent<CanvasGroup>();
+                    if (buttonGroup != null)
+                    {
+                        buttonGroup.alpha = 1f;
+                        buttonGroup.interactable = true;
+                        buttonGroup.blocksRaycasts = true;
+                    }
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Export camera path data to JSON
+    /// </summary>
+    public string ExportCameraPathData()
+    {
+        CameraPath cameraPath = GetComponent<CameraPath>();
+        if (cameraPath == null)
+        {
+            Debug.LogWarning("CameraController: No CameraPath component found");
+            return null;
+        }
+        
+        // Create a simple JSON representation
+        System.Text.StringBuilder json = new System.Text.StringBuilder();
+        json.AppendLine("{");
+        json.AppendLine("  \"waypoints\": [");
+        
+        for (int i = 0; i < cameraPath.waypoints.Count; i++)
+        {
+            var waypoint = cameraPath.waypoints[i];
+            json.AppendLine("    {");
+            json.AppendLine($"      \"position\": [{waypoint.position.x}, {waypoint.position.y}, {waypoint.position.z}],");
+            json.AppendLine($"      \"rotation\": [{waypoint.rotation.x}, {waypoint.rotation.y}, {waypoint.rotation.z}, {waypoint.rotation.w}],");
+            json.AppendLine($"      \"fov\": {waypoint.fov},");
+            json.AppendLine($"      \"arrivalTime\": {waypoint.arrivalTime}");
+            json.Append("    }");
+            
+            if (i < cameraPath.waypoints.Count - 1)
+            {
+                json.AppendLine(",");
+            }
+            else
+            {
+                json.AppendLine();
+            }
+        }
+        
+        json.AppendLine("  ]");
+        json.AppendLine("}");
+        
+        string result = json.ToString();
+        Debug.Log("Camera path data exported:\n" + result);
+        
+        return result;
     }
 }
