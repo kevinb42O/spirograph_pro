@@ -798,4 +798,44 @@ public class MultiAgentManager : MonoBehaviour
         
         Debug.Log($"[MultiAgentManager] Agent {index} removed. {agents.Count} agent(s) remaining.");
     }
+    
+    /// <summary>
+    /// OnDisable - Cleanup event subscriptions
+    /// </summary>
+    void OnDisable()
+    {
+        // Clear event handlers to prevent memory leaks
+        OnAgentSelected = null;
+        OnAgentCompleted = null;
+        OnAgentsSpawned = null;
+    }
+    
+    /// <summary>
+    /// OnDestroy - Final cleanup
+    /// </summary>
+    void OnDestroy()
+    {
+        try
+        {
+            // Clean up all agents
+            if (agents != null && agents.Count > 0)
+            {
+                ClearAllAgents();
+            }
+            
+            // Clear references
+            sharedState = null;
+            agentPrefab = null;
+            selectedAgent = null;
+            
+            // Clear event handlers
+            OnAgentSelected = null;
+            OnAgentCompleted = null;
+            OnAgentsSpawned = null;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[MultiAgentManager] Error during cleanup: {e.Message}");
+        }
+    }
 }

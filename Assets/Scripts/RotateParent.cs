@@ -51,7 +51,22 @@ public class RotateParent : MonoBehaviour
     
     void Update()
     {
+        // CRITICAL: Validate inputs to prevent errors
+        if (float.IsNaN(rotationSpeedMultiplier) || float.IsInfinity(rotationSpeedMultiplier))
+        {
+            Debug.LogWarning($"RotateParent: Invalid rotationSpeedMultiplier: {rotationSpeedMultiplier}");
+            rotationSpeedMultiplier = 1f;
+        }
+        
         Vector3 effectiveSpeed = rotationSpeed * rotationSpeedMultiplier;
+        
+        // Validate effective speed
+        if (float.IsNaN(effectiveSpeed.x) || float.IsNaN(effectiveSpeed.y) || float.IsNaN(effectiveSpeed.z) ||
+            float.IsInfinity(effectiveSpeed.x) || float.IsInfinity(effectiveSpeed.y) || float.IsInfinity(effectiveSpeed.z))
+        {
+            Debug.LogWarning($"RotateParent: Invalid effectiveSpeed calculated");
+            return;
+        }
         
         if (effectiveSpeed.magnitude < 0.01f) return; // Skip if not rotating
         
@@ -62,42 +77,72 @@ public class RotateParent : MonoBehaviour
             // Only rotate visual meshes, not the logical path points
             // This prevents the rotating reference frame problem
             
-            RotateVisualChildrenOnly(effectiveSpeed * Time.deltaTime);
+            try
+            {
+                RotateVisualChildrenOnly(effectiveSpeed * Time.deltaTime);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"RotateParent: Error in RotateVisualChildrenOnly: {e.Message}");
+            }
         }
         else
         {
             // STANDARD MODE:
             // Rotate the entire object including all children
-            if (rotationPoint != null)
+            try
             {
-                // Rotate around custom point
-                transform.RotateAround(rotationPoint.position, effectiveSpeed.normalized, effectiveSpeed.magnitude * Time.deltaTime);
-            }
-            else
-            {
-                // Rotate around own center (pivot point)
-                if (useLocalSpace)
+                if (rotationPoint != null)
                 {
-                    transform.Rotate(effectiveSpeed * Time.deltaTime, Space.Self);
+                    // Validate rotation point still exists
+                    if (rotationPoint.gameObject == null)
+                    {
+                        Debug.LogWarning("RotateParent: Rotation point GameObject destroyed");
+                        rotationPoint = null;
+                        return;
+                    }
+                    
+                    // Rotate around custom point
+                    transform.RotateAround(rotationPoint.position, effectiveSpeed.normalized, effectiveSpeed.magnitude * Time.deltaTime);
                 }
                 else
                 {
-                    transform.Rotate(effectiveSpeed * Time.deltaTime, Space.World);
+                    // Rotate around own center (pivot point)
+                    if (useLocalSpace)
+                    {
+                        transform.Rotate(effectiveSpeed * Time.deltaTime, Space.Self);
+                    }
+                    else
+                    {
+                        transform.Rotate(effectiveSpeed * Time.deltaTime, Space.World);
+                    }
                 }
+                
+                // Update the rotor's cached path after rotation
+                NotifyRotorOfPathChange();
             }
-            
-            // Update the rotor's cached path after rotation
-            NotifyRotorOfPathChange();
+            catch (System.Exception e)
+            {
+                Debug.LogError($"RotateParent: Error during rotation: {e.Message}");
+            }
         }
     }
     
     void NotifyRotorOfPathChange()
     {
-        // Find the rotor and tell it to update its cached path
-        SpirographRoller rotor = FindFirstObjectByType<SpirographRoller>();
-        if (rotor != null && rotor.useWorldSpacePath)
+        // CRITICAL: Safe notification with null checks
+        try
         {
-            rotor.SendMessage("CacheStaticPath", SendMessageOptions.DontRequireReceiver);
+            // Find the rotor and tell it to update its cached path
+            SpirographRoller rotor = FindFirstObjectByType<SpirographRoller>();
+            if (rotor != null && rotor.gameObject != null && rotor.useWorldSpacePath)
+            {
+                rotor.SendMessage("CacheStaticPath", SendMessageOptions.DontRequireReceiver);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"RotateParent: Error notifying rotor of path change: {e.Message}");
         }
     }
     
@@ -106,21 +151,50 @@ public class RotateParent : MonoBehaviour
         // Rotate all children EXCEPT path points
         // The roller can rotate (it manages its own rotation independently)
         // Only skip objects that define the guide path geometry
-        foreach (Transform child in transform)
+        
+        // CRITICAL: Validate rotation vector
+        if (float.IsNaN(rotation.x) || float.IsNaN(rotation.y) || float.IsNaN(rotation.z) ||
+            float.IsInfinity(rotation.x) || float.IsInfinity(rotation.y) || float.IsInfinity(rotation.z))
         {
-            // Check if this is a path point (the stationary guide circle)
-            bool isPathPoint = child.name.Contains("PathPoint") || 
-                             child.name.Contains("Path") ||
-                             child.name.Contains("Point");
-            
-            if (!isPathPoint)
+            Debug.LogWarning($"RotateParent: Invalid rotation vector: {rotation}");
+            return;
+        }
+        
+        try
+        {
+            foreach (Transform child in transform)
             {
-                // Rotate everything else (including roller's visual mesh)
-                if (useLocalSpace)
-                    child.Rotate(rotation, Space.Self);
-                else
-                    child.Rotate(rotation, Space.World);
+                // CRITICAL: Validate child exists
+                if (child == null || child.gameObject == null)
+                {
+                    continue;
+                }
+                
+                // Check if this is a path point (the stationary guide circle)
+                bool isPathPoint = child.name.Contains("PathPoint") || 
+                                 child.name.Contains("Path") ||
+                                 child.name.Contains("Point");
+                
+                if (!isPathPoint)
+                {
+                    // Rotate everything else (including roller's visual mesh)
+                    try
+                    {
+                        if (useLocalSpace)
+                            child.Rotate(rotation, Space.Self);
+                        else
+                            child.Rotate(rotation, Space.World);
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogWarning($"RotateParent: Error rotating child {child.name}: {e.Message}");
+                    }
+                }
             }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"RotateParent: Error in RotateVisualChildrenOnly: {e.Message}");
         }
     }
     

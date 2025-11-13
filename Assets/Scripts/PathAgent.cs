@@ -811,4 +811,76 @@ public class PathAgent : MonoBehaviour
             }
         }
     }
+    
+    /// <summary>
+    /// OnDisable - Cleanup to prevent memory leaks
+    /// </summary>
+    void OnDisable()
+    {
+        // Nothing to unsubscribe currently, but good practice to have this
+    }
+    
+    /// <summary>
+    /// OnDestroy - Final cleanup to prevent memory leaks and orphaned objects
+    /// CRITICAL: Clean up all created GameObjects and references
+    /// </summary>
+    void OnDestroy()
+    {
+        try
+        {
+            // Clean up created GameObjects
+            if (penObject != null)
+            {
+                Destroy(penObject);
+                penObject = null;
+            }
+            
+            if (penDotVisual != null)
+            {
+                Destroy(penDotVisual);
+                penDotVisual = null;
+            }
+            
+            if (radiusLine != null && radiusLine.gameObject != null)
+            {
+                Destroy(radiusLine.gameObject);
+                radiusLine = null;
+            }
+            
+            if (trailRenderer != null && trailRenderer.gameObject != null)
+            {
+                Destroy(trailRenderer.gameObject);
+                trailRenderer = null;
+            }
+            
+            // Clear material references to prevent memory leaks
+            if (trailMaterial != null)
+            {
+                Destroy(trailMaterial);
+                trailMaterial = null;
+            }
+            
+            if (penDotMaterial != null)
+            {
+                Destroy(penDotMaterial);
+                penDotMaterial = null;
+            }
+            
+            if (radiusLineMaterial != null)
+            {
+                Destroy(radiusLineMaterial);
+                radiusLineMaterial = null;
+            }
+            
+            // Clear references
+            sharedState = null;
+            staticPathCache?.Clear();
+            segmentLengths?.Clear();
+            cumulativeLengths?.Clear();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[PathAgent] Error during cleanup: {e.Message}");
+        }
+    }
 }

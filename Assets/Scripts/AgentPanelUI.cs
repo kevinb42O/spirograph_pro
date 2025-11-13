@@ -1784,6 +1784,51 @@ public class AgentPanelUI : MonoBehaviour
 
         outline.effectColor = originalColor;
     }
+    
+    /// <summary>
+    /// OnDisable - Cleanup event subscriptions
+    /// </summary>
+    void OnDisable()
+    {
+        try
+        {
+            // Unsubscribe from agent manager events
+            if (agentManager != null)
+            {
+                agentManager.OnAgentSelected -= OnAgentSelected;
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[AgentPanelUI] Error during OnDisable: {e.Message}");
+        }
+    }
+    
+    /// <summary>
+    /// OnDestroy - Final cleanup
+    /// </summary>
+    void OnDestroy()
+    {
+        try
+        {
+            // Clean up agent cards
+            ClearAgentList();
+            
+            // Clear references
+            agentManager = null;
+            agentPanel = null;
+            agentListContent = null;
+            agentListScrollRect = null;
+            globalStatsText = null;
+            agentCardPrefab = null;
+            addAgentButton = null;
+            agentCreationPanel = null;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[AgentPanelUI] Error during OnDestroy: {e.Message}");
+        }
+    }
 }
 
 /// <summary>
