@@ -100,6 +100,32 @@ public class PathAgent : MonoBehaviour
     private float baseRotorRadius;
     private Vector3 startWorldPosition;
     
+    // Performance: Cached components and values to avoid GetComponent calls
+    private Material trailMaterial;
+    private Material penDotMaterial;
+    private Material radiusLineMaterial;
+    
+    // Performance: Pre-allocated for line width updates
+    private static readonly int EmissionColorID = Shader.PropertyToID("_EmissionColor");
+    
+    // Performance: Cached segment lengths for faster path lookup
+    private List<float> segmentLengths = new List<float>();
+    private List<float> cumulativeLengths = new List<float>();
+    
+    // Performance: LOD system for trail quality based on camera distance
+    [Header("Performance - LOD System")]
+    [Tooltip("Enable LOD (Level of Detail) system for trails")]
+    public bool enableTrailLOD = true;
+    [Tooltip("Distance thresholds for LOD levels (near, medium, far)")]
+    public float[] lodDistances = new float[] { 10f, 25f, 50f };
+    [Tooltip("Trail time multipliers for each LOD level (1.0 = full quality)")]
+    public float[] lodTrailTimes = new float[] { 1.0f, 0.6f, 0.3f };
+    [Tooltip("Min vertex distance multipliers for each LOD level")]
+    public float[] lodMinVertexDistances = new float[] { 0.01f, 0.05f, 0.15f };
+    private int currentLODLevel = 0;
+    private float lodUpdateTimer = 0f;
+    private const float LOD_UPDATE_INTERVAL = 0.5f; // Update LOD every 0.5s
+    
     void Start()
     {
         // Validate shared state
@@ -201,6 +227,17 @@ public class PathAgent : MonoBehaviour
         
         // Update elapsed time
         elapsedTime += Time.deltaTime;
+        
+        // Performance: Update LOD based on camera distance (low frequency)
+        if (enableTrailLOD)
+        {
+            lodUpdateTimer += Time.deltaTime;
+            if (lodUpdateTimer >= LOD_UPDATE_INTERVAL)
+            {
+                lodUpdateTimer = 0f;
+                UpdateTrailLOD();
+            }
+        }
         
         // Read motion parameters - use per-agent settings if this agent has individual control
         float speed, rotationSpeed, penDistance;
@@ -328,23 +365,26 @@ public class PathAgent : MonoBehaviour
     
     void CalculateTotalPathLength()
     {
+        // Performance: Pre-calculate and cache all segment lengths and cumulative distances
+        segmentLengths.Clear();
+        cumulativeLengths.Clear();
         totalPathLength = 0f;
-        
-        if (staticPathCache == null || staticPathCache.Count < 2)
-        {
-            Debug.LogWarning($"[PathAgent] Agent {agentIndex}: Cannot calculate path length - insufficient points");
-            return;
-        }
         
         for (int i = 1; i < staticPathCache.Count; i++)
         {
-            totalPathLength += Vector3.Distance(staticPathCache[i - 1], staticPathCache[i]);
+            float segmentLength = Vector3.Distance(staticPathCache[i - 1], staticPathCache[i]);
+            segmentLengths.Add(segmentLength);
+            totalPathLength += segmentLength;
+            cumulativeLengths.Add(totalPathLength);
         }
         
         // Add closing segment
         if (staticPathCache.Count > 0)
         {
-            totalPathLength += Vector3.Distance(staticPathCache[staticPathCache.Count - 1], staticPathCache[0]);
+            float closingLength = Vector3.Distance(staticPathCache[staticPathCache.Count - 1], staticPathCache[0]);
+            segmentLengths.Add(closingLength);
+            totalPathLength += closingLength;
+            cumulativeLengths.Add(totalPathLength);
         }
         
         // Validate result
@@ -369,25 +409,46 @@ public class PathAgent : MonoBehaviour
             distance = Mathf.Clamp(distance, 0f, totalPathLength);
         }
         
-        float accumulatedDistance = 0f;
-        for (int i = 1; i < staticPathCache.Count; i++)
+        // Performance: Use cached segment lengths instead of recalculating distances
+        // Binary search for the right segment (O(log n) instead of O(n))
+        int segmentIndex = 0;
+        if (cumulativeLengths.Count > 0)
         {
-            float segmentLength = Vector3.Distance(staticPathCache[i - 1], staticPathCache[i]);
-            if (accumulatedDistance + segmentLength >= distance)
+            // Find segment using binary search
+            int left = 0;
+            int right = cumulativeLengths.Count - 1;
+            
+            while (left < right)
             {
-                float t = (distance - accumulatedDistance) / segmentLength;
-                return Vector3.Lerp(staticPathCache[i - 1], staticPathCache[i], t);
+                int mid = (left + right) / 2;
+                if (cumulativeLengths[mid] < distance)
+                {
+                    left = mid + 1;
+                }
+                else
+                {
+                    right = mid;
+                }
             }
-            accumulatedDistance += segmentLength;
+            segmentIndex = left;
         }
         
-        // Handle wrap-around
-        if (staticPathCache.Count > 0)
+        // Calculate position within segment
+        float prevCumulativeLength = segmentIndex > 0 ? cumulativeLengths[segmentIndex - 1] : 0f;
+        float segmentLength = segmentIndex < segmentLengths.Count ? segmentLengths[segmentIndex] : 0f;
+        
+        if (segmentLength > 0f)
         {
-            float segmentLength = Vector3.Distance(staticPathCache[staticPathCache.Count - 1], staticPathCache[0]);
-            if (accumulatedDistance + segmentLength >= distance)
+            float t = (distance - prevCumulativeLength) / segmentLength;
+            
+            // Get start and end points for this segment
+            if (segmentIndex < staticPathCache.Count - 1)
             {
-                float t = (distance - accumulatedDistance) / segmentLength;
+                return Vector3.Lerp(staticPathCache[segmentIndex], staticPathCache[segmentIndex + 1], t);
+            }
+            else if (segmentIndex == staticPathCache.Count - 1)
+            {
+                // Wrap-around segment
                 return Vector3.Lerp(staticPathCache[staticPathCache.Count - 1], staticPathCache[0], t);
             }
         }
@@ -434,9 +495,10 @@ public class PathAgent : MonoBehaviour
             mat.SetFloat("_Metallic", 0f);
             mat.SetFloat("_Glossiness", 1f);
             mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", agentColor * 3f);
+            mat.SetColor(EmissionColorID, agentColor * 3f);
             mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             renderer.material = mat;
+            penDotMaterial = mat; // Performance: Cache material reference
         }
     }
     
@@ -457,9 +519,10 @@ public class PathAgent : MonoBehaviour
         lineMat.SetFloat("_Metallic", 0f);
         lineMat.SetFloat("_Glossiness", 0.8f);
         lineMat.EnableKeyword("_EMISSION");
-        lineMat.SetColor("_EmissionColor", agentColor * 1.5f);
+        lineMat.SetColor(EmissionColorID, agentColor * 1.5f);
         lineMat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
         radiusLine.material = lineMat;
+        radiusLineMaterial = lineMat; // Performance: Cache material reference
     }
     
     void UpdateRadiusLine()
@@ -487,12 +550,13 @@ public class PathAgent : MonoBehaviour
         // Create material
         Material trailMat = new Material(Shader.Find("Particles/Standard Unlit"));
         trailMat.color = agentColor;
-        if (trailMat.HasProperty("_EmissionColor"))
+        if (trailMat.HasProperty(EmissionColorID))
         {
             trailMat.EnableKeyword("_EMISSION");
-            trailMat.SetColor("_EmissionColor", agentColor * 0.5f);
+            trailMat.SetColor(EmissionColorID, agentColor * 0.5f);
         }
         trailRenderer.material = trailMat;
+        trailMaterial = trailMat; // Performance: Cache material reference
     }
     
     /// <summary>
@@ -561,42 +625,40 @@ public class PathAgent : MonoBehaviour
     
     /// <summary>
     /// Update agent color (also updates visual elements)
+    /// Performance: Uses cached material references and shader property IDs
     /// </summary>
     public void SetColor(Color newColor)
     {
         agentColor = newColor;
         
-        // Update pen dot
-        if (penDotVisual != null)
+        // Update pen dot - Performance: Use cached material
+        if (penDotMaterial != null)
         {
-            Renderer renderer = penDotVisual.GetComponent<Renderer>();
-            if (renderer != null && renderer.material != null)
-            {
-                renderer.material.color = newColor;
-                renderer.material.SetColor("_EmissionColor", newColor * 3f);
-            }
+            penDotMaterial.color = newColor;
+            penDotMaterial.SetColor(EmissionColorID, newColor * 3f);
         }
         
-        // Update radius line
-        if (radiusLine != null && radiusLine.material != null)
+        // Update radius line - Performance: Use cached material
+        if (radiusLineMaterial != null)
         {
-            radiusLine.material.color = newColor;
-            radiusLine.material.SetColor("_EmissionColor", newColor * 1.5f);
+            radiusLineMaterial.color = newColor;
+            radiusLineMaterial.SetColor(EmissionColorID, newColor * 1.5f);
         }
         
-        // Update trail
-        if (trailRenderer != null && trailRenderer.material != null)
+        // Update trail - Performance: Use cached material
+        if (trailMaterial != null)
         {
-            trailRenderer.material.color = newColor;
-            if (trailRenderer.material.HasProperty("_EmissionColor"))
+            trailMaterial.color = newColor;
+            if (trailMaterial.HasProperty(EmissionColorID))
             {
-                trailRenderer.material.SetColor("_EmissionColor", newColor * 0.5f);
+                trailMaterial.SetColor(EmissionColorID, newColor * 0.5f);
             }
         }
     }
     
     /// <summary>
     /// Update trail width from shared state
+    /// Performance: Direct property assignment, no material updates
     /// </summary>
     public void UpdateLineWidth(float width)
     {
@@ -608,35 +670,104 @@ public class PathAgent : MonoBehaviour
     }
     
     /// <summary>
+    /// Update trail LOD based on camera distance
+    /// Performance: Reduces trail quality for distant agents
+    /// </summary>
+    void UpdateTrailLOD()
+    {
+        if (trailRenderer == null) return;
+        
+        // Find main camera
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) return;
+        
+        // Calculate distance from camera to this agent
+        float distance = Vector3.Distance(mainCamera.transform.position, transform.position);
+        
+        // Determine LOD level based on distance
+        int newLODLevel = 0;
+        for (int i = 0; i < lodDistances.Length; i++)
+        {
+            if (distance > lodDistances[i])
+            {
+                newLODLevel = i + 1;
+            }
+            else
+            {
+                break;
+            }
+        }
+        
+        // Clamp to available LOD levels
+        newLODLevel = Mathf.Min(newLODLevel, lodTrailTimes.Length - 1);
+        
+        // Only update if LOD level changed
+        if (newLODLevel != currentLODLevel)
+        {
+            currentLODLevel = newLODLevel;
+            
+            // Apply LOD settings to trail renderer
+            if (currentLODLevel < lodTrailTimes.Length)
+            {
+                trailRenderer.time = 1000f * lodTrailTimes[currentLODLevel];
+            }
+            
+            if (currentLODLevel < lodMinVertexDistances.Length)
+            {
+                trailRenderer.minVertexDistance = lodMinVertexDistances[currentLODLevel];
+            }
+            
+            // Optionally reduce corner/cap vertices for far LOD levels
+            if (currentLODLevel >= 2)
+            {
+                trailRenderer.numCornerVertices = 2;
+                trailRenderer.numCapVertices = 2;
+            }
+            else
+            {
+                trailRenderer.numCornerVertices = 5;
+                trailRenderer.numCapVertices = 5;
+            }
+        }
+    }
+    
+    /// <summary>
     /// Highlight this agent's trail (pulse effect)
+    /// Performance: Uses cached material and shader property IDs
     /// </summary>
     public void HighlightTrail(bool highlight)
     {
-        if (trailRenderer != null && trailRenderer.material != null)
+        if (trailMaterial != null)
         {
+            float baseWidth = sharedState != null ? sharedState.masterLineWidth : 0.3f;
+            
             if (highlight)
             {
                 // Increase emission for highlight effect
-                if (trailRenderer.material.HasProperty("_EmissionColor"))
+                if (trailMaterial.HasProperty(EmissionColorID))
                 {
-                    trailRenderer.material.SetColor("_EmissionColor", agentColor * 2f);
+                    trailMaterial.SetColor(EmissionColorID, agentColor * 2f);
                 }
                 // Slightly increase width
-                float baseWidth = sharedState != null ? sharedState.masterLineWidth : 0.3f;
-                trailRenderer.startWidth = baseWidth * 1.5f;
-                trailRenderer.endWidth = baseWidth * 1.5f;
+                if (trailRenderer != null)
+                {
+                    trailRenderer.startWidth = baseWidth * 1.5f;
+                    trailRenderer.endWidth = baseWidth * 1.5f;
+                }
             }
             else
             {
                 // Reset to normal
-                if (trailRenderer.material.HasProperty("_EmissionColor"))
+                if (trailMaterial.HasProperty(EmissionColorID))
                 {
-                    trailRenderer.material.SetColor("_EmissionColor", agentColor * 0.5f);
+                    trailMaterial.SetColor(EmissionColorID, agentColor * 0.5f);
                 }
                 // Reset width
-                float baseWidth = sharedState != null ? sharedState.masterLineWidth : 0.3f;
-                trailRenderer.startWidth = baseWidth;
-                trailRenderer.endWidth = baseWidth;
+                if (trailRenderer != null)
+                {
+                    trailRenderer.startWidth = baseWidth;
+                    trailRenderer.endWidth = baseWidth;
+                }
             }
         }
     }

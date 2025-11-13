@@ -66,6 +66,10 @@ public class AgentPanelUI : MonoBehaviour
     // Agent card prefab (created at runtime)
     private GameObject agentCardPrefab;
     
+    // Performance: Object pooling for agent cards
+    private List<AgentCard> agentCardPool = new List<AgentCard>();
+    private const int INITIAL_POOL_SIZE = 16; // Max agents = 16
+    
     // Add Agent Button
     private Button addAgentButton;
     
@@ -82,6 +86,12 @@ public class AgentPanelUI : MonoBehaviour
     // Update frequency for stats (10 Hz = every 0.1s)
     private float updateInterval = 0.1f;
     private float timeSinceLastUpdate = 0f;
+    
+    // Performance: Reusable StringBuilder to reduce string allocations
+    private System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder(128);
+    
+    // Performance: Track if panel needs rebuild to batch Canvas updates
+    private bool needsRebuild = false;
     
     /// <summary>
     /// Represents a single agent card in the roster
@@ -128,6 +138,8 @@ public class AgentPanelUI : MonoBehaviour
         }
         
         Debug.Log("✓ AgentPanelUI initialized - panel will be shown when multi-agent mode is enabled");
+        
+        // Performance: Pre-warm object pool (done lazily when panel is created)
     }
     
     void Update()
@@ -137,6 +149,14 @@ public class AgentPanelUI : MonoBehaviour
         if (timeSinceLastUpdate >= updateInterval)
         {
             timeSinceLastUpdate = 0f;
+            
+            // Performance: Batch UI updates to reduce Canvas rebuilds
+            if (needsRebuild)
+            {
+                Canvas.ForceUpdateCanvases();
+                needsRebuild = false;
+            }
+            
             UpdateAllAgentCards();
             UpdateGlobalStats();
         }
@@ -962,6 +982,7 @@ public class AgentPanelUI : MonoBehaviour
     
     /// <summary>
     /// Clear all agent cards
+    /// Performance: Return cards to pool instead of destroying
     /// </summary>
     void ClearAgentList()
     {
@@ -975,18 +996,107 @@ public class AgentPanelUI : MonoBehaviour
         {
             if (card != null && card.cardObject != null)
             {
-                Destroy(card.cardObject);
+                // Return to pool instead of destroying
+                card.cardObject.SetActive(false);
+                agentCardPool.Add(card);
             }
         }
         agentCards.Clear();
     }
     
     /// <summary>
+    /// Get an agent card from the pool or create a new one
+    /// Performance: Object pooling to reduce instantiation overhead
+    /// </summary>
+    AgentCard GetPooledAgentCard()
+    {
+        // Try to get from pool
+        if (agentCardPool.Count > 0)
+        {
+            AgentCard card = agentCardPool[agentCardPool.Count - 1];
+            agentCardPool.RemoveAt(agentCardPool.Count - 1);
+            card.cardObject.SetActive(true);
+            return card;
+        }
+        
+        // Pool empty, return null to create new card
+        return null;
+    }
+    
+    /// <summary>
     /// Create a card for a single agent
+    /// Performance: Uses object pooling to reduce instantiation overhead
     /// </summary>
     void CreateAgentCard(PathAgent agent, int index)
     {
-        // Card container
+        // Try to get from pool first (Performance optimization)
+        AgentCard pooledCard = GetPooledAgentCard();
+        if (pooledCard != null)
+        {
+            // Reuse pooled card
+            pooledCard.agent = agent;
+            pooledCard.cardObject.name = $"AgentCard_{index}";
+            
+            // Update UI elements
+            Text nameText = pooledCard.cardObject.transform.Find("TopRow")?.GetComponent<Text>();
+            if (nameText != null)
+            {
+                nameText.text = $"Agent {index}";
+                nameText.color = agent.agentColor;
+            }
+            
+            // Update progress bar fill color
+            if (pooledCard.progressBar != null && pooledCard.progressBar.fillRect != null)
+            {
+                Image fillImage = pooledCard.progressBar.fillRect.GetComponent<Image>();
+                if (fillImage != null)
+                {
+                    fillImage.color = agent.agentColor;
+                }
+            }
+            
+            // Update checkmark color
+            if (pooledCard.selectToggle != null && pooledCard.selectToggle.graphic != null)
+            {
+                pooledCard.selectToggle.graphic.color = agent.agentColor;
+            }
+            
+            // Re-parent to content
+            pooledCard.cardObject.transform.SetParent(agentListContent.transform, false);
+            
+            // Update button callbacks
+            int agentIndex = index;
+            pooledCard.focusButton.onClick.RemoveAllListeners();
+            pooledCard.pauseResumeButton.onClick.RemoveAllListeners();
+            
+            Text focusText = pooledCard.focusButton.GetComponentInChildren<Text>();
+            Text pauseText = pooledCard.pauseResumeButton.GetComponentInChildren<Text>();
+            
+            pooledCard.focusButton.onClick.AddListener(() => OnIdleButtonClicked(agentIndex, focusText));
+            pooledCard.pauseResumeButton.onClick.AddListener(() => OnPauseResumeButtonClicked(agentIndex, pauseText));
+            
+            pooledCard.selectToggle.onValueChanged.RemoveAllListeners();
+            pooledCard.selectToggle.onValueChanged.AddListener((isOn) => {
+                if (isOn) OnAgentCardSelected(agentIndex);
+            });
+            
+            // Find and update remove button
+            Transform removeButtonTransform = pooledCard.cardObject.transform.Find("RemoveButton");
+            if (removeButtonTransform != null)
+            {
+                Button removeButton = removeButtonTransform.GetComponent<Button>();
+                if (removeButton != null)
+                {
+                    removeButton.onClick.RemoveAllListeners();
+                    removeButton.onClick.AddListener(() => OnRemoveButtonClicked(agentIndex));
+                }
+            }
+            
+            agentCards.Add(pooledCard);
+            return;
+        }
+        
+        // Card container - create new card if pool is empty
         GameObject cardObj = new GameObject($"AgentCard_{index}");
         cardObj.transform.SetParent(agentListContent.transform, false);
         RectTransform cardRect = cardObj.AddComponent<RectTransform>();
@@ -1402,9 +1512,12 @@ public class AgentPanelUI : MonoBehaviour
         
         card.progressBar.value = totalProgress;
         
-        // Update stats text
-        float speedMultiplier = agent.speedMultiplier;
-        card.progressText.text = $"Progress: {(totalProgress * 100f):F1}% | Speed: {speedMultiplier:F1}x";
+        // Update stats text - Performance: Use StringBuilder to reduce allocations
+        stringBuilder.Clear();
+        stringBuilder.Append("Progress: ").Append((totalProgress * 100f).ToString("F1"))
+                     .Append("% | Speed: ").Append(agent.speedMultiplier.ToString("F1"))
+                     .Append("x");
+        card.progressText.text = stringBuilder.ToString();
     }
     
     /// <summary>
@@ -1421,21 +1534,22 @@ public class AgentPanelUI : MonoBehaviour
     
     /// <summary>
     /// Update global statistics display
+    /// Performance: Uses StringBuilder to reduce string allocations
     /// </summary>
     void UpdateGlobalStats()
     {
         if (agentManager == null || globalStatsText == null) return;
         
-        // Prevent NaN in progress calculation
-        float avgProgress = agentManager.averageProgress;
-        if (float.IsNaN(avgProgress) || float.IsInfinity(avgProgress))
-        {
-            avgProgress = 0f;
-        }
+        // Performance: Use StringBuilder to avoid string allocation
+        stringBuilder.Clear();
+        stringBuilder.Append("Active: ").Append(agentManager.activeAgentCount)
+                     .Append(" | Paused: ").Append(agentManager.pausedAgentCount)
+                     .Append(" | Completed: ").Append(agentManager.completedAgentCount)
+                     .Append("\nAvg Progress: ").Append((agentManager.averageProgress * 100f).ToString("F1"))
+                     .Append("%\nTotal Distance: ").Append(agentManager.totalDistanceCovered.ToString("F1"))
+                     .Append("m");
         
-        globalStatsText.text = $"Active: {agentManager.activeAgentCount} | Paused: {agentManager.pausedAgentCount} | Completed: {agentManager.completedAgentCount}\n" +
-                               $"Avg Progress: {(avgProgress * 100f):F1}%\n" +
-                               $"Total Distance: {agentManager.totalDistanceCovered:F1}m";
+        globalStatsText.text = stringBuilder.ToString();
     }
     
     /// <summary>

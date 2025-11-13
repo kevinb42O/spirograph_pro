@@ -116,6 +116,11 @@ public class SpirographRoller : MonoBehaviour
     private Text pauseButtonText;
     private float baseRotorRadius; // Store the base rotor size at start
     
+    // Performance: Cached shader property IDs to avoid string lookups
+    private static readonly int EmissionColorID = Shader.PropertyToID("_EmissionColor");
+    private static readonly int MetallicID = Shader.PropertyToID("_Metallic");
+    private static readonly int GlossinessID = Shader.PropertyToID("_Glossiness");
+    
     void Start()
     {
         if (pathPoints == null || pathPoints.Length == 0)
@@ -315,11 +320,11 @@ public class SpirographRoller : MonoBehaviour
         {
             Material dotMat = new Material(Shader.Find("Standard"));
             dotMat.color = Color.yellow;
-            dotMat.SetFloat("_Metallic", 0f);
-            dotMat.SetFloat("_Glossiness", 1f);
+            dotMat.SetFloat(MetallicID, 0f);
+            dotMat.SetFloat(GlossinessID, 1f);
             dotMat.EnableKeyword("_EMISSION");
-            // Configurable glow intensity
-            dotMat.SetColor("_EmissionColor", new Color(1f, 0.9f, 0f, 1f) * penGlowIntensity);
+            // Configurable glow intensity - Performance: Use cached property ID
+            dotMat.SetColor(EmissionColorID, new Color(1f, 0.9f, 0f, 1f) * penGlowIntensity);
             dotMat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             dotRenderer.material = dotMat;
         }
@@ -333,7 +338,8 @@ public class SpirographRoller : MonoBehaviour
             Renderer dotRenderer = penDotVisual.GetComponent<Renderer>();
             if (dotRenderer != null && dotRenderer.material != null)
             {
-                dotRenderer.material.SetColor("_EmissionColor", new Color(1f, 0.9f, 0f, 1f) * penGlowIntensity);
+                // Performance: Use cached property ID
+                dotRenderer.material.SetColor(EmissionColorID, new Color(1f, 0.9f, 0f, 1f) * penGlowIntensity);
             }
         }
     }
@@ -354,10 +360,11 @@ public class SpirographRoller : MonoBehaviour
         // Create glowing material for the line with configurable color
         Material lineMat = new Material(Shader.Find("Standard"));
         lineMat.color = radiusLineColor;
-        lineMat.SetFloat("_Metallic", 0f);
-        lineMat.SetFloat("_Glossiness", 0.8f);
+        lineMat.SetFloat(MetallicID, 0f);
+        lineMat.SetFloat(GlossinessID, 0.8f);
         lineMat.EnableKeyword("_EMISSION");
-        lineMat.SetColor("_EmissionColor", radiusLineColor * 2f);
+        // Performance: Use cached property ID
+        lineMat.SetColor(EmissionColorID, radiusLineColor * 2f);
         lineMat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
         radiusLine.material = lineMat;
         
@@ -387,7 +394,8 @@ public class SpirographRoller : MonoBehaviour
         if (radiusLine != null && radiusLine.material != null)
         {
             radiusLine.material.color = radiusLineColor;
-            radiusLine.material.SetColor("_EmissionColor", radiusLineColor * 2f);
+            // Performance: Use cached property ID
+            radiusLine.material.SetColor(EmissionColorID, radiusLineColor * 2f);
         }
     }
     
@@ -478,7 +486,7 @@ public class SpirographRoller : MonoBehaviour
     
     void UpdateLineBrightness()
     {
-        // Update brightness/alpha of current trail
+        // Update brightness/alpha of current trail - Performance: Use cached property ID
         if (trailRenderer != null && trailRenderer.material != null)
         {
             Color color = trailRenderer.material.color;
@@ -486,15 +494,15 @@ public class SpirographRoller : MonoBehaviour
             trailRenderer.material.color = color;
             
             // Also update emission if present
-            if (trailRenderer.material.HasProperty("_EmissionColor"))
+            if (trailRenderer.material.HasProperty(EmissionColorID))
             {
-                Color emission = trailRenderer.material.GetColor("_EmissionColor");
+                Color emission = trailRenderer.material.GetColor(EmissionColorID);
                 emission.a = lineBrightness;
-                trailRenderer.material.SetColor("_EmissionColor", emission);
+                trailRenderer.material.SetColor(EmissionColorID, emission);
             }
         }
         
-        // Update brightness of all old trails
+        // Update brightness of all old trails - Performance: Use cached property ID
         foreach (TrailRenderer oldTrail in oldTrails)
         {
             if (oldTrail != null && oldTrail.material != null)
@@ -504,11 +512,11 @@ public class SpirographRoller : MonoBehaviour
                 oldTrail.material.color = color;
                 
                 // Also update emission if present
-                if (oldTrail.material.HasProperty("_EmissionColor"))
+                if (oldTrail.material.HasProperty(EmissionColorID))
                 {
-                    Color emission = oldTrail.material.GetColor("_EmissionColor");
+                    Color emission = oldTrail.material.GetColor(EmissionColorID);
                     emission.a = lineBrightness;
-                    oldTrail.material.SetColor("_EmissionColor", emission);
+                    oldTrail.material.SetColor(EmissionColorID, emission);
                 }
             }
         }
@@ -544,73 +552,74 @@ public class SpirographRoller : MonoBehaviour
         {
             case LineEffectMode.Normal:
                 // Standard rendering - reset any modifications
-                if (mat.HasProperty("_EmissionColor"))
+                // Performance: Use cached property ID
+                if (mat.HasProperty(EmissionColorID))
                 {
                     Color baseColor = mat.color;
                     baseColor.a = lineBrightness;
-                    mat.SetColor("_EmissionColor", baseColor * 0.5f);
+                    mat.SetColor(EmissionColorID, baseColor * 0.5f);
                 }
                 trail.startWidth = lineWidth;
                 trail.endWidth = lineWidth;
                 break;
                 
             case LineEffectMode.Glow:
-                // Intense emission for bloom effect
-                if (mat.HasProperty("_EmissionColor"))
+                // Intense emission for bloom effect - Performance: Use cached property ID
+                if (mat.HasProperty(EmissionColorID))
                 {
                     Color glowColor = mat.color;
                     glowColor.a = lineBrightness;
-                    mat.SetColor("_EmissionColor", glowColor * effectIntensity);
+                    mat.SetColor(EmissionColorID, glowColor * effectIntensity);
                 }
                 break;
                 
             case LineEffectMode.Rainbow:
-                // Cycle through rainbow colors
+                // Cycle through rainbow colors - Performance: Use cached property ID
                 float hue = (effectTimer * 0.2f) % 1f;
                 Color rainbowColor = Color.HSVToRGB(hue, 0.8f, 1f);
                 rainbowColor.a = lineBrightness;
                 mat.color = rainbowColor;
-                if (mat.HasProperty("_EmissionColor"))
+                if (mat.HasProperty(EmissionColorID))
                 {
-                    mat.SetColor("_EmissionColor", rainbowColor * effectIntensity);
+                    mat.SetColor(EmissionColorID, rainbowColor * effectIntensity);
                 }
                 break;
                 
             case LineEffectMode.Pulse:
-                // Pulsing brightness
+                // Pulsing brightness - Performance: Use cached property ID
                 float pulse = (Mathf.Sin(effectTimer * 2f) * 0.5f + 0.5f); // 0 to 1
                 float pulseBrightness = Mathf.Lerp(0.3f, 1f, pulse) * lineBrightness;
                 Color pulseColor = mat.color;
                 pulseColor.a = pulseBrightness;
                 mat.color = pulseColor;
-                if (mat.HasProperty("_EmissionColor"))
+                if (mat.HasProperty(EmissionColorID))
                 {
-                    mat.SetColor("_EmissionColor", pulseColor * effectIntensity * pulse);
+                    mat.SetColor(EmissionColorID, pulseColor * effectIntensity * pulse);
                 }
                 break;
                 
             case LineEffectMode.Wireframe:
-                // Thin, technical lines with subtle glow
+                // Thin, technical lines with subtle glow - Performance: Use cached property ID
                 trail.startWidth = lineWidth * 0.3f;
                 trail.endWidth = lineWidth * 0.3f;
-                if (mat.HasProperty("_EmissionColor"))
+                if (mat.HasProperty(EmissionColorID))
                 {
                     Color wireColor = new Color(0.3f, 0.8f, 1f, lineBrightness); // Cyan
                     mat.color = wireColor;
-                    mat.SetColor("_EmissionColor", wireColor * effectIntensity * 0.5f);
+                    mat.SetColor(EmissionColorID, wireColor * effectIntensity * 0.5f);
                 }
                 break;
                 
             case LineEffectMode.Neon:
-                // Ultra-bright cyberpunk look
+                // Ultra-bright cyberpunk look - Performance: Use cached property ID
                 Color neonColor = mat.color;
                 neonColor.a = lineBrightness;
                 mat.color = neonColor;
-                if (mat.HasProperty("_EmissionColor"))
+                if (mat.HasProperty(EmissionColorID))
                 {
                     // Very intense emission with slight pulsing
                     float neonPulse = Mathf.Sin(effectTimer * 3f) * 0.2f + 1f;
-                    mat.SetColor("_EmissionColor", neonColor * effectIntensity * 2f * neonPulse);
+                    mat.SetColor(EmissionColorID, neonColor * effectIntensity * 2f * neonPulse);
                 }
                 trail.startWidth = lineWidth * 1.2f;
                 trail.endWidth = lineWidth * 1.2f;
@@ -634,14 +643,14 @@ public class SpirographRoller : MonoBehaviour
                 break;
                 
             case LineEffectMode.Hologram:
-                // Scan-line holographic effect with flicker
+                // Scan-line holographic effect with flicker - Performance: Use cached property ID
                 float scanLine = (effectTimer * 2f) % 1f;
                 float flicker = Mathf.PerlinNoise(effectTimer * 10f, 0f) * 0.3f + 0.7f;
                 Color holoColor = new Color(0.2f, 0.8f, 1f, lineBrightness * flicker);
                 mat.color = holoColor;
-                if (mat.HasProperty("_EmissionColor"))
+                if (mat.HasProperty(EmissionColorID))
                 {
-                    mat.SetColor("_EmissionColor", holoColor * effectIntensity * flicker);
+                    mat.SetColor(EmissionColorID, holoColor * effectIntensity * flicker);
                 }
                 // Add scan-line effect via width modulation
                 float widthMod = Mathf.Abs(Mathf.Sin(effectTimer * 5f)) * 0.5f + 0.5f;
@@ -867,11 +876,11 @@ public class SpirographRoller : MonoBehaviour
                 // Copy all properties from source material
                 newMat.CopyPropertiesFromMaterial(sourceMat);
                 
-                // Override the color
+                // Override the color - Performance: Use cached property ID
                 newMat.color = newColor;
-                if (newMat.HasProperty("_EmissionColor"))
+                if (newMat.HasProperty(EmissionColorID))
                 {
-                    newMat.SetColor("_EmissionColor", newColor * 0.5f);
+                    newMat.SetColor(EmissionColorID, newColor * 0.5f);
                 }
                 
                 Debug.Log($"✅ New material created with shader: {newMat.shader.name}");
@@ -887,12 +896,13 @@ public class SpirographRoller : MonoBehaviour
                 
                 newMat = new Material(shader);
                 newMat.color = newColor;
-                if (newMat.HasProperty("_Metallic")) newMat.SetFloat("_Metallic", 0f);
-                if (newMat.HasProperty("_Glossiness")) newMat.SetFloat("_Glossiness", 0.5f);
-                if (newMat.HasProperty("_EmissionColor"))
+                // Performance: Use cached property IDs
+                if (newMat.HasProperty(MetallicID)) newMat.SetFloat(MetallicID, 0f);
+                if (newMat.HasProperty(GlossinessID)) newMat.SetFloat(GlossinessID, 0.5f);
+                if (newMat.HasProperty(EmissionColorID))
                 {
                     newMat.EnableKeyword("_EMISSION");
-                    newMat.SetColor("_EmissionColor", newColor * 0.5f);
+                    newMat.SetColor(EmissionColorID, newColor * 0.5f);
                     newMat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
                 }
             }
@@ -917,13 +927,13 @@ public class SpirographRoller : MonoBehaviour
         currentValue = v;
         currentLineColor = Color.HSVToRGB(h, s, v);
         
-        // Update current trail color without creating a new one
+        // Update current trail color without creating a new one - Performance: Use cached property ID
         if (trailRenderer != null && trailRenderer.material != null)
         {
             trailRenderer.material.color = currentLineColor;
-            if (trailRenderer.material.HasProperty("_EmissionColor"))
+            if (trailRenderer.material.HasProperty(EmissionColorID))
             {
-                trailRenderer.material.SetColor("_EmissionColor", currentLineColor * 0.5f);
+                trailRenderer.material.SetColor(EmissionColorID, currentLineColor * 0.5f);
             }
             
             // Reapply effects to update colors
