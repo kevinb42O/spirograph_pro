@@ -1030,7 +1030,7 @@ public class SpirographUIManager : MonoBehaviour
             panel.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
         }
         
-        float duration = 0.3f;
+        float duration = UIConstants.TransitionNormal;
         float elapsed = 0f;
         float startAlpha = canvasGroup.alpha;
         float targetAlpha = show ? 1f : 0f;
@@ -1042,8 +1042,8 @@ public class SpirographUIManager : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
-            // Smooth  easing
-            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+            // Use UIConstants smooth easing for better feel
+            float smoothT = UIConstants.SmoothEase(t);
             
             canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, smoothT);
             panel.transform.localScale = Vector3.Lerp(startScale, targetScale, smoothT);
@@ -1083,58 +1083,59 @@ public class SpirographUIManager : MonoBehaviour
         
         CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.referenceResolution = new Vector2(UIConstants.CanvasReferenceWidth, UIConstants.CanvasReferenceHeight);
+        scaler.matchWidthOrHeight = 0.5f; // Balance between width and height matching
         
         canvasObj.AddComponent<GraphicRaycaster>();
         
         // Create Hide UI Button (Top-Right Corner - ALWAYS VISIBLE) - Modern glassmorphic style
-        hideUIButton = CreateModernButton(canvas.transform, "HideUIButton", new Vector2(-15, -15), new Vector2(90, 40), "⊗ HIDE");
+        hideUIButton = CreateModernButton(canvas.transform, "HideUIButton", new Vector2(-UIConstants.PanelPadding, -UIConstants.PanelPadding), new Vector2(90, UIConstants.ButtonHeight), "⊗ HIDE");
         RectTransform hideButtonRect = hideUIButton.GetComponent<RectTransform>();
         hideButtonRect.anchorMin = new Vector2(1, 1); // Top-right anchor
         hideButtonRect.anchorMax = new Vector2(1, 1);
         hideButtonRect.pivot = new Vector2(1, 1);
         
-        // Glassmorphic style for hide button
+        // Glassmorphic style for hide button using UIConstants
         Image hideButtonImage = hideUIButton.GetComponent<Image>();
-        hideButtonImage.color = new Color(0.05f, 0.05f, 0.15f, 0.7f); // Deep space glass
+        hideButtonImage.color = UIConstants.SectionBackground;
         
-        // Add subtle glow outline
+        // Add subtle glow outline using UIConstants
         Outline hideOutline = hideUIButton.gameObject.AddComponent<Outline>();
-        hideOutline.effectColor = new Color(0.4f, 0.6f, 1f, 0.5f); // Cyan glow
-        hideOutline.effectDistance = new Vector2(1, -1);
+        hideOutline.effectColor = UIConstants.CyanGlow;
+        hideOutline.effectDistance = UIConstants.ShadowDistance;
         
         Text hideButtonText = hideUIButton.GetComponentInChildren<Text>();
-        hideButtonText.fontSize = 14;
+        hideButtonText.fontSize = UIConstants.FontSizeHeader;
         hideButtonText.fontStyle = FontStyle.Bold;
-        hideButtonText.color = new Color(0.8f, 0.9f, 1f, 0.95f); // Soft cyan-white
+        hideButtonText.color = UIConstants.SoftCyanWhite;
         
-        // Create Panel Background - Modern Glassmorphism with cosmic theme - NOW SCROLLABLE!
+        // Create Panel Background - Modern Glassmorphism with cosmic theme using UIConstants
         GameObject panel = new GameObject("ControlPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform panelRect = panel.AddComponent<RectTransform>();
         panelRect.anchorMin = new Vector2(0, 0);
         panelRect.anchorMax = new Vector2(0, 1);
         panelRect.pivot = new Vector2(0, 0.5f);
-        panelRect.anchoredPosition = new Vector2(15, 0);
-        panelRect.sizeDelta = new Vector2(340, -80); // Full height minus padding (80 = 15 top + 15 bottom + 50 for title)
+        panelRect.anchoredPosition = new Vector2(UIConstants.PanelPadding, 0);
+        panelRect.sizeDelta = new Vector2(340, -80); // Full height minus padding
         
         Image panelImage = panel.AddComponent<Image>();
-        panelImage.color = new Color(0.02f, 0.02f, 0.08f, 0.75f);
+        panelImage.color = UIConstants.DeepSpaceGlass;
         
         // Add Canvas Group for smooth transitions
         CanvasGroup panelGroup = panel.AddComponent<CanvasGroup>();
         panelGroup.alpha = 1f;
         
-        // Add subtle outer glow
+        // Add subtle outer glow using UIConstants
         Shadow panelGlow = panel.AddComponent<Shadow>();
-        panelGlow.effectColor = new Color(0.2f, 0.4f, 0.8f, 0.3f);
-        panelGlow.effectDistance = new Vector2(0, 0);
+        panelGlow.effectColor = UIConstants.BlueGlow;
+        panelGlow.effectDistance = UIConstants.GlowDistance;
         panelGlow.useGraphicAlpha = true;
         
-        // Add border accent
+        // Add border accent using UIConstants
         Outline panelOutline = panel.AddComponent<Outline>();
-        panelOutline.effectColor = new Color(0.3f, 0.5f, 0.9f, 0.25f);
-        panelOutline.effectDistance = new Vector2(2, -2);
+        panelOutline.effectColor = UIConstants.CyanGlow;
+        panelOutline.effectDistance = UIConstants.OutlineDistance;
         
         // Add ScrollRect for scrolling
         ScrollRect panelScroll = panel.AddComponent<ScrollRect>();
@@ -1179,8 +1180,8 @@ public class SpirographUIManager : MonoBehaviour
         contentLayout.childControlHeight = true;
         contentLayout.childForceExpandWidth = false;
         contentLayout.childForceExpandHeight = false;
-        contentLayout.spacing = 10f; // Space between sections
-        contentLayout.padding = new RectOffset(0, 0, 20, 20); // Top and bottom padding
+        contentLayout.spacing = UIConstants.SectionSpacing;
+        contentLayout.padding = new RectOffset(0, 0, (int)UIConstants.SpacingXL, (int)UIConstants.SpacingXL);
         
         // Add ContentSizeFitter to auto-adjust height based on content
         ContentSizeFitter contentFitter = content.AddComponent<ContentSizeFitter>();
@@ -1214,15 +1215,15 @@ public class SpirographUIManager : MonoBehaviour
         Text titleText = titleObj.AddComponent<Text>();
         titleText.text = "✦ SPIROGRAPH CONTROLS";
         titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        titleText.fontSize = 18;
+        titleText.fontSize = UIConstants.FontSizeTitle;
         titleText.fontStyle = FontStyle.Bold;
-        titleText.color = new Color(0.7f, 0.85f, 1f, 0.9f); // Bright cyan
+        titleText.color = UIConstants.BrightCyan;
         titleText.alignment = TextAnchor.MiddleCenter;
         
-        // Add subtle glow to title
+        // Add subtle glow to title using UIConstants
         Shadow titleShadow = titleObj.AddComponent<Shadow>();
-        titleShadow.effectColor = new Color(0.3f, 0.6f, 1f, 0.5f);
-        titleShadow.effectDistance = new Vector2(0, 0);
+        titleShadow.effectColor = UIConstants.BlueGlow;
+        titleShadow.effectDistance = UIConstants.GlowDistance;
         
         yPos -= 55;
         
@@ -1778,9 +1779,9 @@ public class SpirographUIManager : MonoBehaviour
         Text label = labelObj.AddComponent<Text>();
         label.text = labelText;
         label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        label.fontSize = 12;
+        label.fontSize = UIConstants.FontSizeBody;
         label.fontStyle = FontStyle.Bold;
-        label.color = new Color(0.7f, 0.85f, 1f, 0.9f); // Cyan tint
+        label.color = UIConstants.BrightCyan;
         label.alignment = TextAnchor.MiddleLeft;
         
         // Value Label (right aligned)
@@ -1795,8 +1796,8 @@ public class SpirographUIManager : MonoBehaviour
         valueLabel = valueLabelObj.AddComponent<Text>();
         valueLabel.text = valueText;
         valueLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        valueLabel.fontSize = 11;
-        valueLabel.color = new Color(0.5f, 0.7f, 1f, 0.8f); // Softer cyan
+        valueLabel.fontSize = UIConstants.FontSizeSmall;
+        valueLabel.color = UIConstants.MutedText;
         valueLabel.alignment = TextAnchor.MiddleRight;
         
         // Background (glassmorphic)
@@ -1807,12 +1808,12 @@ public class SpirographUIManager : MonoBehaviour
         bgRect.anchorMax = Vector2.one;
         bgRect.sizeDelta = Vector2.zero;
         Image bgImage = bg.AddComponent<Image>();
-        bgImage.color = new Color(0.1f, 0.15f, 0.25f, 0.4f); // Deep space glass
+        bgImage.color = UIConstants.ControlBackground;
         
-        // Add subtle outline
+        // Add subtle outline using UIConstants
         Outline bgOutline = bg.AddComponent<Outline>();
-        bgOutline.effectColor = new Color(0.2f, 0.4f, 0.7f, 0.3f);
-        bgOutline.effectDistance = new Vector2(1, -1);
+        bgOutline.effectColor = UIConstants.CyanGlow;
+        bgOutline.effectDistance = UIConstants.ShadowDistance;
         
         // Fill Area
         GameObject fillArea = new GameObject("Fill Area");
@@ -1831,12 +1832,12 @@ public class SpirographUIManager : MonoBehaviour
         fillRect.anchorMax = Vector2.one;
         fillRect.sizeDelta = Vector2.zero;
         Image fillImage = fill.AddComponent<Image>();
-        fillImage.color = new Color(0.3f, 0.6f, 1f, 0.6f); // Bright cyan
+        fillImage.color = UIConstants.BlueGlow;
         
-        // Add glow to fill
+        // Add glow to fill using UIConstants
         Shadow fillGlow = fill.AddComponent<Shadow>();
-        fillGlow.effectColor = new Color(0.4f, 0.7f, 1f, 0.5f);
-        fillGlow.effectDistance = new Vector2(0, 0);
+        fillGlow.effectColor = UIConstants.CyanGlow;
+        fillGlow.effectDistance = UIConstants.GlowDistance;
         
         // Handle Area
         GameObject handleArea = new GameObject("Handle Slide Area");
@@ -1853,12 +1854,12 @@ public class SpirographUIManager : MonoBehaviour
         RectTransform handleRect = handle.AddComponent<RectTransform>();
         handleRect.sizeDelta = new Vector2(10, 10); // Smaller handle (was 16x16)
         Image handleImage = handle.AddComponent<Image>();
-        handleImage.color = new Color(0.9f, 0.95f, 1f, 1f); // Bright white-cyan
+        handleImage.color = UIConstants.BrightWhite;
         
-        // Add handle glow
+        // Add handle glow using UIConstants
         Shadow handleGlow = handle.AddComponent<Shadow>();
-        handleGlow.effectColor = new Color(0.4f, 0.7f, 1f, 0.8f);
-        handleGlow.effectDistance = new Vector2(0, 0);
+        handleGlow.effectColor = UIConstants.CyanGlow;
+        handleGlow.effectDistance = UIConstants.GlowDistance;
         
         // Slider
         Slider slider = sliderObj.AddComponent<Slider>();
@@ -2322,32 +2323,32 @@ public class SpirographUIManager : MonoBehaviour
         buttonRect.anchoredPosition = position;
         buttonRect.sizeDelta = size;
         
-        // Glassmorphic background
+        // Glassmorphic background using UIConstants
         Image buttonImage = buttonObj.AddComponent<Image>();
-        buttonImage.color = new Color(0.08f, 0.12f, 0.22f, 0.7f); // Deep space glass
+        buttonImage.color = UIConstants.ButtonBackground;
         
-        // Add subtle outline
+        // Add subtle outline using UIConstants
         Outline buttonOutline = buttonObj.AddComponent<Outline>();
-        buttonOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.4f); // Cyan glow
-        buttonOutline.effectDistance = new Vector2(1, -1);
+        buttonOutline.effectColor = UIConstants.CyanGlow;
+        buttonOutline.effectDistance = UIConstants.ShadowDistance;
         
-        // Add hover glow effect
+        // Add hover glow effect using UIConstants
         Shadow buttonGlow = buttonObj.AddComponent<Shadow>();
-        buttonGlow.effectColor = new Color(0.2f, 0.4f, 0.8f, 0.3f);
-        buttonGlow.effectDistance = new Vector2(0, 0);
+        buttonGlow.effectColor = UIConstants.BlueGlow;
+        buttonGlow.effectDistance = UIConstants.GlowDistance;
         
         Button button = buttonObj.AddComponent<Button>();
         button.targetGraphic = buttonImage;
         
-        // Setup hover colors
+        // Setup hover colors with consistent styling
         ColorBlock colors = button.colors;
-        colors.normalColor = new Color(1f, 1f, 1f, 1f);
-        colors.highlightedColor = new Color(0.85f, 0.95f, 1f, 1f); // Bright on hover
-        colors.pressedColor = new Color(0.6f, 0.8f, 1f, 1f); // Cyan on press
-        colors.selectedColor = new Color(0.85f, 0.95f, 1f, 1f);
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(UIConstants.BrightCyan.r, UIConstants.BrightCyan.g, UIConstants.BrightCyan.b, 1f);
+        colors.pressedColor = new Color(UIConstants.CyanGlow.r, UIConstants.CyanGlow.g, UIConstants.CyanGlow.b, 1f);
+        colors.selectedColor = new Color(UIConstants.BrightCyan.r, UIConstants.BrightCyan.g, UIConstants.BrightCyan.b, 1f);
         colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
         colors.colorMultiplier = 1.2f;
-        colors.fadeDuration = 0.15f;
+        colors.fadeDuration = UIConstants.TransitionFast;
         button.colors = colors;
         
         // Text
@@ -2360,15 +2361,15 @@ public class SpirographUIManager : MonoBehaviour
         Text text = textObj.AddComponent<Text>();
         text.text = buttonText;
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 12;
+        text.fontSize = UIConstants.FontSizeBody;
         text.fontStyle = FontStyle.Bold;
-        text.color = new Color(0.85f, 0.95f, 1f, 0.95f); // Bright cyan-white
+        text.color = UIConstants.SoftCyanWhite;
         text.alignment = TextAnchor.MiddleCenter;
         
-        // Add text shadow for depth
+        // Add text shadow for depth using UIConstants
         Shadow textShadow = textObj.AddComponent<Shadow>();
         textShadow.effectColor = new Color(0, 0, 0, 0.5f);
-        textShadow.effectDistance = new Vector2(1, -1);
+        textShadow.effectDistance = UIConstants.ShadowDistance;
         
         return button;
     }
@@ -3314,14 +3315,14 @@ public class SpirographUIManager : MonoBehaviour
         if (isTransitioningContext) yield break;
         isTransitioningContext = true;
         
-        // Fade out banner
+        // Fade out banner using UIConstants timing
         if (contextBannerGroup != null)
         {
-            yield return StartCoroutine(FadeContextBanner(0f, 0.2f));
+            yield return StartCoroutine(FadeContextBanner(0f, UIConstants.TransitionFast));
         }
         
         // Wait a moment
-        yield return new WaitForSeconds(0.05f);
+        yield return new WaitForSeconds(UIConstants.TransitionVeryFast / 2f);
         
         // Update content
         if (contextBannerText != null)
@@ -3333,10 +3334,10 @@ public class SpirographUIManager : MonoBehaviour
             contextBannerAccent.color = agent.agentColor;
         }
         
-        // Fade in banner with new content
+        // Fade in banner with new content using UIConstants timing
         if (contextBannerGroup != null)
         {
-            yield return StartCoroutine(FadeContextBanner(1f, 0.3f));
+            yield return StartCoroutine(FadeContextBanner(1f, UIConstants.TransitionNormal));
         }
         
         isTransitioningContext = false;
@@ -3350,14 +3351,14 @@ public class SpirographUIManager : MonoBehaviour
         if (isTransitioningContext) yield break;
         isTransitioningContext = true;
         
-        // Fade out banner
+        // Fade out banner using UIConstants timing
         if (contextBannerGroup != null)
         {
-            yield return StartCoroutine(FadeContextBanner(0f, 0.2f));
+            yield return StartCoroutine(FadeContextBanner(0f, UIConstants.TransitionFast));
         }
         
         // Wait a moment
-        yield return new WaitForSeconds(0.05f);
+        yield return new WaitForSeconds(UIConstants.TransitionVeryFast / 2f);
         
         // Update content
         if (contextBannerText != null)
@@ -3366,13 +3367,13 @@ public class SpirographUIManager : MonoBehaviour
         }
         if (contextBannerAccent != null)
         {
-            contextBannerAccent.color = new Color(0.4f, 0.7f, 1f, 1f);
+            contextBannerAccent.color = UIConstants.CyanGlow;
         }
         
-        // Fade in banner with new content
+        // Fade in banner with new content using UIConstants timing
         if (contextBannerGroup != null)
         {
-            yield return StartCoroutine(FadeContextBanner(1f, 0.3f));
+            yield return StartCoroutine(FadeContextBanner(1f, UIConstants.TransitionNormal));
         }
         
         isTransitioningContext = false;
@@ -3391,8 +3392,10 @@ public class SpirographUIManager : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
-            contextBannerGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, t);
+            float t = elapsed / duration;
+            // Use UIConstants smooth easing for better feel
+            float smoothT = UIConstants.SmoothEase(t);
+            contextBannerGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, smoothT);
             yield return null;
         }
         
