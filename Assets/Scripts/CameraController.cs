@@ -8,7 +8,7 @@ public class CameraController : MonoBehaviour
     [Header("Target")]
     [Tooltip("The object to look at or follow")]
     public Transform target;
-    
+
     [Header("Camera Settings")]
     [Range(0.1f, 10f)] public float mouseSensitivity = 3f;
     [Range(1f, 50f)] public float movementSpeed = 15f;
@@ -16,7 +16,7 @@ public class CameraController : MonoBehaviour
     [Range(0.5f, 100f)] public float minDistance = 2f;
     [Range(5f, 200f)] public float maxDistance = 50f;
     [Range(1f, 20f)] public float smoothFollowSpeed = 8f;
-    
+
     [Header("Advanced Settings")]
     [Range(0f, 1f)] public float movementDamping = 0.85f;
     [Range(0f, 1f)] public float rotationDamping = 0.9f;
@@ -24,7 +24,7 @@ public class CameraController : MonoBehaviour
     [Range(0f, 5f)] public float lookAhead = 1.5f;
     [Range(40f, 120f)] public float fieldOfView = 60f;
     [Range(0.1f, 2f)] public float zoomDamping = 0.3f;
-    
+
     [Header("Auto Orbit Settings")]
     [Tooltip("Controlled by Auto Orbit button")]
     public bool autoOrbitEnabled = false;
@@ -37,51 +37,51 @@ public class CameraController : MonoBehaviour
     public bool orbitFollowsTarget = true;
     [Tooltip("Smoothly transition into orbit mode")]
     [Range(0.1f, 5f)] public float orbitTransitionSpeed = 1f;
-    
+
     [Header("Camera Shake")]
     public bool enableIdleShake = false;
     [Range(0f, 0.5f)] public float idleShakeAmount = 0.02f;
     [Range(0f, 10f)] public float idleShakeSpeed = 1f;
     [Range(0f, 2f)] public float impactShakeAmount = 0.3f;
     [Range(0f, 1f)] public float impactShakeDuration = 0.5f;
-    
+
     [Header("Auto-Framing")]
     public bool autoFraming = false;
     [Range(1f, 50f)] public float autoFramingPadding = 5f;
     [Range(0.1f, 10f)] public float autoFramingSpeed = 2f;
-    
+
     [Header("Recording Mode")]
     public bool recordingMode = false;
     public bool lockUIInRecordingMode = true;
-    
+
     [Header("Advanced Focus")]
     public bool focusOnMultipleAgents = false;
     public float focusTransitionSpeed = 3f;
-    
+
     [Header("UI")]
     public bool createUI = true;
-    
+
     public enum CameraMode { FreeFly, SmoothFollow, AutoOrbit }
     private CameraMode currentMode = CameraMode.SmoothFollow;
-    
+
     private float currentDistance = 10f;
     private float targetDistance = 10f;
     private float horizontalAngle = 0f;
     private float verticalAngle = 30f;
     private Vector3 targetOffset;
-    
+
     // Smoothing variables for AAA feel
     private Vector3 velocity = Vector3.zero;
     private Vector3 currentVelocity = Vector3.zero;
     private Vector2 rotationVelocity = Vector2.zero;
     private float currentFOV;
-    
+
     // Smart scroll variables
     private float lastScrollTime = 0f;
     private float scrollSpeedMultiplier = 1f;
     private float scrollResetDelay = 2f;
     private int scrollCount = 0;
-    
+
     // Auto orbit variables
     private bool isOrbiting = false;
     private float orbitAngle = 0f;
@@ -89,51 +89,51 @@ public class CameraController : MonoBehaviour
     private float storedHorizontalAngle = 0f;
     private float storedVerticalAngle = 0f;
     private float storedDistance = 0f;
-    
+
     private Button lookAtButton;
     private Button smoothFollowButton;
     private Button autoOrbitButton;
     private Text lookAtButtonText;
     private Text smoothFollowButtonText;
     private Text autoOrbitButtonText;
-    
+
     // Input System variables - AAA quality input handling
     private Mouse mouse;
     private Keyboard keyboard;
-    
+
     // UI EventSystem management
     private EventSystem eventSystem;
-    
+
     // Camera shake variables
     private Vector3 shakeOffset = Vector3.zero;
     private float shakeTimer = 0f;
     private bool isShaking = false;
-    
+
     // Auto-framing variables
     private float targetAutoFrameDistance = 15f;
-    
+
     // Advanced focus variables
     private Vector3 focusPoint = Vector3.zero;
-    
+
     void Start()
     {
         // Initialize Input System devices - CRITICAL for AAA input handling
         mouse = Mouse.current;
         keyboard = Keyboard.current;
-        
+
         // Find EventSystem to disable it when controlling camera
         eventSystem = EventSystem.current;
-        
+
         if (mouse == null)
         {
             Debug.LogWarning("CameraController: No mouse detected!");
         }
-        
+
         if (keyboard == null)
         {
             Debug.LogWarning("CameraController: No keyboard detected!");
         }
-        
+
         if (target == null)
         {
             // Try to find the target automatically
@@ -141,22 +141,22 @@ public class CameraController : MonoBehaviour
             if (parentObj != null)
                 target = parentObj.transform;
         }
-        
+
         if (target != null)
         {
             // Calculate initial distance
             currentDistance = Vector3.Distance(transform.position, target.position);
             currentDistance = Mathf.Clamp(currentDistance, minDistance, maxDistance);
             targetDistance = currentDistance;
-            
+
             // Calculate initial angles
             Vector3 direction = transform.position - target.position;
             horizontalAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
             verticalAngle = Mathf.Asin(direction.y / direction.magnitude) * Mathf.Rad2Deg;
-            
+
             targetOffset = target.position;
         }
-        
+
         // Initialize FOV
         Camera cam = GetComponent<Camera>();
         if (cam != null)
@@ -164,10 +164,10 @@ public class CameraController : MonoBehaviour
             currentFOV = cam.fieldOfView;
             fieldOfView = currentFOV;
         }
-        
+
         ConnectToUI();
     }
-    
+
     void OnEnable()
     {
         // Refresh input devices when enabled
@@ -175,66 +175,66 @@ public class CameraController : MonoBehaviour
         keyboard = Keyboard.current;
         eventSystem = EventSystem.current;
     }
-    
+
     void ConnectToUI()
     {
         // Look for UI elements created by SpirographUIManager
         lookAtButton = GameObject.Find("LookAtButton")?.GetComponent<Button>();
         smoothFollowButton = GameObject.Find("SmoothFollowButton")?.GetComponent<Button>();
         autoOrbitButton = GameObject.Find("AutoOrbitButton")?.GetComponent<Button>();
-        
+
         if (lookAtButton != null)
         {
             lookAtButtonText = lookAtButton.GetComponentInChildren<Text>();
             lookAtButton.onClick.AddListener(() => SetCameraMode(CameraMode.FreeFly));
         }
-        
+
         if (smoothFollowButton != null)
         {
             smoothFollowButtonText = smoothFollowButton.GetComponentInChildren<Text>();
             smoothFollowButton.onClick.AddListener(() => SetCameraMode(CameraMode.SmoothFollow));
         }
-        
+
         if (autoOrbitButton != null)
         {
             autoOrbitButtonText = autoOrbitButton.GetComponentInChildren<Text>();
             autoOrbitButton.onClick.AddListener(() => ToggleAutoOrbit());
         }
-        
+
         // Set initial button colors
         UpdateButtonColors();
     }
-    
+
     void Update()
     {
         // Smart EventSystem management
         if (eventSystem == null) eventSystem = EventSystem.current;
-        
+
         if (eventSystem != null)
         {
             // Check if we're actively using camera controls (keyboard input)
             bool usingCameraControls = false;
-            
+
             if (keyboard != null && currentMode == CameraMode.FreeFly)
             {
-                usingCameraControls = keyboard.zKey.isPressed || keyboard.wKey.isPressed || 
-                                     keyboard.sKey.isPressed || keyboard.qKey.isPressed || 
+                usingCameraControls = keyboard.zKey.isPressed || keyboard.wKey.isPressed ||
+                                     keyboard.sKey.isPressed || keyboard.qKey.isPressed ||
                                      keyboard.aKey.isPressed || keyboard.dKey.isPressed ||
                                      keyboard.spaceKey.isPressed || keyboard.leftCtrlKey.isPressed ||
                                      keyboard.rightCtrlKey.isPressed || keyboard.leftShiftKey.isPressed;
             }
-            
+
             // Disable EventSystem ONLY when actively using camera controls with keyboard
             // This allows mouse to work on UI when you're not pressing keys
             eventSystem.enabled = !usingCameraControls;
         }
     }
-    
+
     void LateUpdate()
     {
         // Update auto-framing before camera movement
         UpdateAutoFraming();
-        
+
         // Handle auto orbit mode
         if (isOrbiting)
         {
@@ -252,18 +252,18 @@ public class CameraController : MonoBehaviour
                 UpdateSmoothFollowMode();
             }
         }
-        
+
         // Apply camera shake after positioning (if enabled)
         if (enableIdleShake || isShaking)
         {
             ApplyCameraShake();
         }
     }
-    
+
     void ToggleAutoOrbit()
     {
         isOrbiting = !isOrbiting;
-        
+
         if (isOrbiting)
         {
             // Store current camera state for smooth transition
@@ -272,7 +272,7 @@ public class CameraController : MonoBehaviour
             storedDistance = currentDistance;
             orbitAngle = horizontalAngle;
             orbitTransitionProgress = 0f;
-            
+
             Debug.Log("Auto Orbit: ENABLED");
         }
         else
@@ -281,33 +281,33 @@ public class CameraController : MonoBehaviour
             horizontalAngle = orbitAngle;
             verticalAngle = Mathf.Lerp(verticalAngle, storedVerticalAngle, 0.5f);
             orbitTransitionProgress = 0f;
-            
+
             Debug.Log("Auto Orbit: DISABLED");
         }
     }
-    
+
     void UpdateAutoOrbitMode()
     {
         // Determine which target to orbit around
         Transform activeOrbitTarget = orbitTarget != null ? orbitTarget : target;
-        
+
         if (activeOrbitTarget == null)
         {
             Debug.LogWarning("[CameraController] No orbit target available, disabling auto-orbit");
             isOrbiting = false;
             return;
         }
-        
+
         // Smooth transition into orbit mode
         orbitTransitionProgress = Mathf.Min(orbitTransitionProgress + Time.deltaTime * orbitTransitionSpeed, 1f);
-        
+
         // Update orbit angle continuously
         orbitAngle += orbitSpeed * Time.deltaTime;
-        
+
         // Normalize angle to 0-360
         if (orbitAngle > 360f) orbitAngle -= 360f;
         if (orbitAngle < 0f) orbitAngle += 360f;
-        
+
         // Scroll wheel zoom in orbit mode
         if (mouse != null)
         {
@@ -318,91 +318,91 @@ public class CameraController : MonoBehaviour
                 orbitDistance = Mathf.Clamp(orbitDistance, minDistance, maxDistance);
             }
         }
-        
+
         // Smooth transition between current angle and orbit angle
         float currentHorizontal = Mathf.LerpAngle(storedHorizontalAngle, orbitAngle, orbitTransitionProgress);
         float currentVertical = Mathf.Lerp(storedVerticalAngle, orbitElevation, orbitTransitionProgress);
         float currentDist = Mathf.Lerp(storedDistance, orbitDistance, orbitTransitionProgress);
-        
+
         // Calculate orbit center position
         Vector3 orbitCenter = orbitFollowsTarget && activeOrbitTarget != null ? activeOrbitTarget.position : targetOffset;
-        
+
         // Smooth follow if following target
         if (orbitFollowsTarget)
         {
             targetOffset = Vector3.Lerp(targetOffset, orbitCenter, smoothFollowSpeed * Time.deltaTime);
         }
-        
+
         // Calculate camera position using spherical coordinates
         float radH = currentHorizontal * Mathf.Deg2Rad;
         float radV = currentVertical * Mathf.Deg2Rad;
-        
+
         Vector3 offset = new Vector3(
             Mathf.Sin(radH) * Mathf.Cos(radV),
             Mathf.Sin(radV),
             Mathf.Cos(radH) * Mathf.Cos(radV)
         );
-        
+
         Vector3 desiredPosition = targetOffset + offset * currentDist;
-        
+
         // Smooth camera movement
         transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref currentVelocity, 0.15f);
-        
+
         // Smooth look-at (always look at the orbit center)
         Quaternion targetRotation = Quaternion.LookRotation(targetOffset - transform.position);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 8f * Time.deltaTime);
-        
+
         // Allow manual interruption with mouse
         if (mouse != null && mouse.rightButton.wasPressedThisFrame)
         {
             ToggleAutoOrbit();
         }
-        
+
         // Dynamic FOV
         UpdateFieldOfView(false);
     }
-    
+
     void UpdateFreeFlyMode()
     {
         // Unity Editor-style scene navigation with MOUSE ONLY controls
-        
+
         // Refresh input devices if null (hot-plugging support)
         if (mouse == null) mouse = Mouse.current;
         if (keyboard == null) keyboard = Keyboard.current;
         if (eventSystem == null) eventSystem = EventSystem.current;
-        
+
         // Check if mouse is over UI - if so, don't control camera with mouse
         bool isMouseOverUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-        
+
         // MOUSE ONLY CONTROLS - Unity Editor Style
         bool isControllingCamera = false;
-        
+
         if (mouse != null && !isMouseOverUI)
         {
-            isControllingCamera = mouse.rightButton.isPressed || mouse.middleButton.isPressed || 
+            isControllingCamera = mouse.rightButton.isPressed || mouse.middleButton.isPressed ||
                                  (keyboard != null && keyboard.leftAltKey.isPressed && mouse.leftButton.isPressed);
         }
-        
+
         // COMPLETELY DISABLE EventSystem when controlling camera to prevent ALL UI interference
         if (eventSystem != null)
         {
             eventSystem.enabled = !isControllingCamera;
         }
-        
+
         // ========== UNITY EDITOR-STYLE MOUSE CONTROLS ==========
-        
+
         if (mouse != null && !isMouseOverUI)
         {
             bool isAltPressed = keyboard != null && keyboard.leftAltKey.isPressed;
             Vector2 mouseDelta = mouse.delta.ReadValue();
-            
+
             // RIGHT MOUSE BUTTON: Free Look / Rotate view (FPS-style rotation)
             if (mouse.rightButton.isPressed)
             {
                 // Apply rotation with smoothing
                 rotationVelocity.x += mouseDelta.x * mouseSensitivity * 0.05f;
                 rotationVelocity.y += mouseDelta.y * mouseSensitivity * 0.05f;
-                
+
                 // Lock cursor while rotating
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
@@ -414,9 +414,9 @@ public class CameraController : MonoBehaviour
                 Vector3 panMovement = Vector3.zero;
                 panMovement -= transform.right * mouseDelta.x * movementSpeed * 0.015f; // Left/Right
                 panMovement -= transform.up * mouseDelta.y * movementSpeed * 0.015f; // Up/Down (relative to camera)
-                
+
                 transform.position += panMovement;
-                
+
                 // Lock cursor while panning
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
@@ -428,33 +428,33 @@ public class CameraController : MonoBehaviour
                 // Find a focus point (use target if available, otherwise center of scene)
                 Vector3 focusPoint = target != null ? target.position : Vector3.zero;
                 float distanceToFocus = Vector3.Distance(transform.position, focusPoint);
-                
+
                 // Apply orbital rotation
                 rotationVelocity.x += mouseDelta.x * mouseSensitivity * 0.05f;
                 rotationVelocity.y += mouseDelta.y * mouseSensitivity * 0.05f;
-                
+
                 // Lock cursor while orbiting
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
-                
+
                 // Update angles for orbit
                 horizontalAngle += mouseDelta.x * mouseSensitivity * 0.3f;
                 verticalAngle -= mouseDelta.y * mouseSensitivity * 0.3f;
                 verticalAngle = Mathf.Clamp(verticalAngle, -89f, 89f);
-                
+
                 // Calculate new position around focus point
                 float radH = horizontalAngle * Mathf.Deg2Rad;
                 float radV = verticalAngle * Mathf.Deg2Rad;
-                
+
                 Vector3 offset = new Vector3(
                     Mathf.Sin(radH) * Mathf.Cos(radV),
                     Mathf.Sin(radV),
                     Mathf.Cos(radH) * Mathf.Cos(radV)
                 );
-                
+
                 transform.position = focusPoint + offset * distanceToFocus;
                 transform.LookAt(focusPoint);
-                
+
                 // Clear rotation velocity since we're manually positioning
                 rotationVelocity = Vector2.zero;
                 return; // Skip normal rotation code below
@@ -472,7 +472,7 @@ public class CameraController : MonoBehaviour
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
-        
+
         // Apply rotation damping for smooth AAA feel (only for right mouse button rotation)
         if (mouse != null && mouse.rightButton.isPressed && !isMouseOverUI)
         {
@@ -480,7 +480,7 @@ public class CameraController : MonoBehaviour
             verticalAngle -= rotationVelocity.y;
             verticalAngle = Mathf.Clamp(verticalAngle, -89f, 89f);
             rotationVelocity *= rotationDamping;
-            
+
             // Smooth rotation application
             Quaternion targetRotation = Quaternion.Euler(verticalAngle, horizontalAngle, 0f);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 15f * Time.deltaTime);
@@ -490,7 +490,7 @@ public class CameraController : MonoBehaviour
             // Dampen rotation velocity when not actively rotating
             rotationVelocity *= rotationDamping;
         }
-        
+
         // SMART SCROLL ZOOM - Unity Editor style (zoom toward/away from view center)
         if (mouse != null && !isMouseOverUI)
         {
@@ -498,7 +498,7 @@ public class CameraController : MonoBehaviour
             if (Mathf.Abs(scroll) > 0.01f)
             {
                 float currentTime = Time.time;
-                
+
                 // Check if this scroll is within the acceleration window
                 if (currentTime - lastScrollTime < scrollResetDelay)
                 {
@@ -513,9 +513,9 @@ public class CameraController : MonoBehaviour
                     scrollCount = 0;
                     scrollSpeedMultiplier = 1f;
                 }
-                
+
                 lastScrollTime = currentTime;
-                
+
                 // Zoom toward the center of view (Unity Editor style)
                 Vector3 zoomVelocity = transform.forward * scroll * zoomSpeed * 0.5f * scrollSpeedMultiplier;
                 currentVelocity = Vector3.Lerp(currentVelocity, zoomVelocity, 0.5f);
@@ -530,16 +530,16 @@ public class CameraController : MonoBehaviour
                 }
             }
         }
-        
+
         transform.position += currentVelocity * Time.deltaTime;
         currentVelocity *= 0.85f; // Damping
-        
+
         // ========== KEYBOARD MOVEMENT ==========
         // Only allow keyboard movement when NOT controlling camera with mouse
         if (keyboard != null && !isControllingCamera && !isMouseOverUI)
         {
             Vector3 moveDirection = Vector3.zero;
-            
+
             // WASD / ZQSD movement
             if (keyboard.wKey.isPressed || keyboard.zKey.isPressed) // Forward (W or Z for AZERTY)
                 moveDirection += transform.forward;
@@ -549,33 +549,33 @@ public class CameraController : MonoBehaviour
                 moveDirection -= transform.right;
             if (keyboard.dKey.isPressed) // Right
                 moveDirection += transform.right;
-            
+
             // Vertical movement
             if (keyboard.spaceKey.isPressed) // Up
                 moveDirection += Vector3.up;
             if (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed) // Down
                 moveDirection -= Vector3.up;
-            
+
             // Apply movement with sprint modifier
             if (moveDirection.sqrMagnitude > 0.01f)
             {
                 float speed = movementSpeed;
-                
+
                 // Sprint when holding Shift
                 if (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed)
                 {
                     speed *= sprintMultiplier;
                 }
-                
+
                 moveDirection.Normalize();
                 currentVelocity = Vector3.Lerp(currentVelocity, moveDirection * speed, 10f * Time.deltaTime);
             }
         }
-        
+
         // Dynamic FOV
         UpdateFieldOfView(false);
     }
-    
+
     void UpdateSmoothFollowMode()
     {
         if (target == null)
@@ -583,20 +583,20 @@ public class CameraController : MonoBehaviour
             Debug.LogWarning("[CameraController] No target available for smooth follow mode");
             return;
         }
-        
+
         // Refresh input devices if null (hot-plugging support)
         if (mouse == null) mouse = Mouse.current;
         if (keyboard == null) keyboard = Keyboard.current;
-        
+
         // Mouse look with smooth rotation
         if (mouse != null && mouse.rightButton.isPressed)
         {
             Vector2 mouseDelta = mouse.delta.ReadValue();
-            
+
             // Apply rotation with smoothing (reduced sensitivity for less twitchy feel)
             rotationVelocity.x += mouseDelta.x * mouseSensitivity * 0.03f;
             rotationVelocity.y += mouseDelta.y * mouseSensitivity * 0.03f;
-            
+
             // Hide cursor while rotating
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -607,13 +607,13 @@ public class CameraController : MonoBehaviour
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
-        
+
         // Apply rotation damping for AAA feel
         horizontalAngle += rotationVelocity.x;
         verticalAngle -= rotationVelocity.y;
         verticalAngle = Mathf.Clamp(verticalAngle, -89f, 89f);
         rotationVelocity *= rotationDamping;
-        
+
         // Smooth zoom with scroll wheel
         if (mouse != null)
         {
@@ -621,13 +621,13 @@ public class CameraController : MonoBehaviour
             targetDistance -= scroll * zoomSpeed * 0.05f;
             targetDistance = Mathf.Clamp(targetDistance, minDistance, maxDistance);
         }
-        
+
         // Smooth distance interpolation for AAA feel
         currentDistance = Mathf.Lerp(currentDistance, targetDistance, zoomDamping);
-        
+
         // Smooth follow with look-ahead prediction
         Vector3 targetPosition = target.position;
-        
+
         // Look-ahead: predict where target is going
         if (lookAhead > 0f && target != null)
         {
@@ -642,32 +642,32 @@ public class CameraController : MonoBehaviour
                 }
             }
         }
-        
+
         targetOffset = Vector3.Lerp(targetOffset, targetPosition, smoothFollowSpeed * Time.deltaTime);
-        
+
         // Calculate camera position with spherical coordinates
         float radH = horizontalAngle * Mathf.Deg2Rad;
         float radV = verticalAngle * Mathf.Deg2Rad;
-        
+
         Vector3 offset = new Vector3(
             Mathf.Sin(radH) * Mathf.Cos(radV),
             Mathf.Sin(radV),
             Mathf.Cos(radH) * Mathf.Cos(radV)
         );
-        
+
         Vector3 desiredPosition = targetOffset + offset * currentDistance;
-        
+
         // Smooth position interpolation for AAA feel
         transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref currentVelocity, 0.1f);
-        
+
         // Smooth look-at with slight lag for cinematic feel
         Quaternion targetRotation = Quaternion.LookRotation(targetOffset - transform.position);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 10f * Time.deltaTime);
-        
+
         // Dynamic FOV
         UpdateFieldOfView(false);
     }
-    
+
     void UpdateFieldOfView(bool isSprinting)
     {
         // Dynamic FOV for AAA feel - increase when sprinting
@@ -676,17 +676,17 @@ public class CameraController : MonoBehaviour
         {
             targetFOV = fieldOfView * 1.15f; // 15% increase when sprinting
         }
-        
+
         // Smooth FOV transition
         currentFOV = Mathf.Lerp(currentFOV, targetFOV, 5f * Time.deltaTime);
-        
+
         Camera cam = GetComponent<Camera>();
         if (cam != null)
         {
             cam.fieldOfView = currentFOV;
         }
     }
-    
+
     public void SetCameraMode(CameraMode mode)
     {
         // If requesting AutoOrbit mode, toggle orbit instead of switching internal follow/freefly
@@ -705,15 +705,15 @@ public class CameraController : MonoBehaviour
         }
         // Preserve current camera orientation when switching modes
         Vector3 currentEuler = transform.rotation.eulerAngles;
-        
+
         // Normalize angles to -180 to 180 range
         horizontalAngle = currentEuler.y;
         verticalAngle = currentEuler.x;
         if (verticalAngle > 180f) verticalAngle -= 360f;
-        
+
         // Reset rotation velocity to avoid sudden movements
         rotationVelocity = Vector2.zero;
-        
+
         // If switching to follow mode, set distance based on current position
         if (mode == CameraMode.SmoothFollow)
         {
@@ -729,11 +729,11 @@ public class CameraController : MonoBehaviour
                 Debug.LogWarning("[CameraController] No target available for smooth follow mode");
             }
         }
-        
+
         currentMode = mode;
         UpdateButtonColors();
     }
-    
+
     void UpdateButtonColors()
     {
         // Update button colors
@@ -741,7 +741,7 @@ public class CameraController : MonoBehaviour
         {
             ColorBlock lookAtColors = lookAtButton.colors;
             ColorBlock smoothFollowColors = smoothFollowButton.colors;
-            
+
             if (currentMode == CameraMode.FreeFly)
             {
                 lookAtColors.normalColor = new Color(0.3f, 0.7f, 0.3f, 0.8f);
@@ -752,16 +752,16 @@ public class CameraController : MonoBehaviour
                 lookAtColors.normalColor = new Color(0.2f, 0.5f, 0.8f, 0.8f);
                 smoothFollowColors.normalColor = new Color(0.3f, 0.7f, 0.3f, 0.8f);
             }
-            
+
             lookAtButton.colors = lookAtColors;
             smoothFollowButton.colors = smoothFollowColors;
         }
-        
+
         // Update auto orbit button color
         if (autoOrbitButton != null)
         {
             ColorBlock orbitColors = autoOrbitButton.colors;
-            
+
             if (isOrbiting)
             {
                 orbitColors.normalColor = new Color(1f, 0.6f, 0f, 0.8f); // Orange when active
@@ -770,15 +770,15 @@ public class CameraController : MonoBehaviour
             {
                 orbitColors.normalColor = new Color(0.2f, 0.5f, 0.8f, 0.8f); // Blue when inactive
             }
-            
+
             autoOrbitButton.colors = orbitColors;
         }
     }
-    
+
     // ============================================================
     // ADVANCED CAMERA FEATURES
     // ============================================================
-    
+
     /// <summary>
     /// Apply camera shake effect
     /// </summary>
@@ -794,12 +794,12 @@ public class CameraController : MonoBehaviour
                 Mathf.PerlinNoise(time, time) - 0.5f
             ) * idleShakeAmount;
         }
-        
+
         // Impact shake - larger temporary shake
         if (isShaking)
         {
             shakeTimer -= Time.deltaTime;
-            
+
             if (shakeTimer <= 0f)
             {
                 isShaking = false;
@@ -812,11 +812,11 @@ public class CameraController : MonoBehaviour
                 shakeOffset = Random.insideUnitSphere * impactShakeAmount * intensity;
             }
         }
-        
+
         // Apply shake offset to camera position
         transform.position += shakeOffset;
     }
-    
+
     /// <summary>
     /// Trigger an impact shake effect
     /// </summary>
@@ -826,22 +826,22 @@ public class CameraController : MonoBehaviour
         shakeTimer = impactShakeDuration;
         Debug.Log("Camera: Impact shake triggered");
     }
-    
+
     /// <summary>
     /// Calculate center of mass of all agents
     /// </summary>
     Vector3 CalculateAgentsCenterOfMass()
     {
         PathAgent[] agents = FindObjectsByType<PathAgent>(FindObjectsSortMode.None);
-        
+
         if (agents.Length == 0)
         {
             return target != null ? target.position : Vector3.zero;
         }
-        
+
         Vector3 sum = Vector3.zero;
         int count = 0;
-        
+
         foreach (PathAgent agent in agents)
         {
             if (agent != null && agent.gameObject.activeInHierarchy)
@@ -850,25 +850,25 @@ public class CameraController : MonoBehaviour
                 count++;
             }
         }
-        
+
         return count > 0 ? sum / count : (target != null ? target.position : Vector3.zero);
     }
-    
+
     /// <summary>
     /// Update auto-framing to keep all agents visible
     /// </summary>
     void UpdateAutoFraming()
     {
         if (!autoFraming) return;
-        
+
         PathAgent[] agents = FindObjectsByType<PathAgent>(FindObjectsSortMode.None);
-        
+
         if (agents.Length == 0) return;
-        
+
         // Calculate bounding sphere of all agents
         Vector3 center = CalculateAgentsCenterOfMass();
         float maxDistance = 0f;
-        
+
         foreach (PathAgent agent in agents)
         {
             if (agent != null && agent.gameObject.activeInHierarchy)
@@ -880,18 +880,18 @@ public class CameraController : MonoBehaviour
                 }
             }
         }
-        
+
         // Calculate required distance to fit all agents in view
         // Account for FOV and padding
         float fovRadians = fieldOfView * Mathf.Deg2Rad;
         float requiredDistance = (maxDistance + autoFramingPadding) / Mathf.Tan(fovRadians / 2f);
-        
+
         // Clamp to min/max distance
         targetAutoFrameDistance = Mathf.Clamp(requiredDistance, minDistance, maxDistance);
-        
+
         // Smoothly adjust distance
         targetDistance = Mathf.Lerp(targetDistance, targetAutoFrameDistance, autoFramingSpeed * Time.deltaTime);
-        
+
         // Update focus point for multi-agent focus
         if (focusOnMultipleAgents)
         {
@@ -899,18 +899,18 @@ public class CameraController : MonoBehaviour
             targetOffset = focusPoint;
         }
     }
-    
+
     /// <summary>
     /// Toggle recording mode
     /// </summary>
     public void ToggleRecordingMode()
     {
         recordingMode = !recordingMode;
-        
+
         if (recordingMode)
         {
             Debug.Log("🎥 Recording Mode: ENABLED");
-            
+
             // Lock UI if enabled
             if (lockUIInRecordingMode)
             {
@@ -925,7 +925,7 @@ public class CameraController : MonoBehaviour
                         canvasGroup.blocksRaycasts = false;
                     }
                 }
-                
+
                 // Also hide the hide/show button
                 GameObject hideButton = GameObject.Find("HideUIButton");
                 if (hideButton != null)
@@ -941,7 +941,7 @@ public class CameraController : MonoBehaviour
         else
         {
             Debug.Log("🎥 Recording Mode: DISABLED");
-            
+
             // Unlock UI
             if (lockUIInRecordingMode)
             {
@@ -956,7 +956,7 @@ public class CameraController : MonoBehaviour
                         canvasGroup.blocksRaycasts = true;
                     }
                 }
-                
+
                 // Show the hide/show button
                 GameObject hideButton = GameObject.Find("HideUIButton");
                 if (hideButton != null)
@@ -972,24 +972,24 @@ public class CameraController : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// Export camera path data to JSON
     /// </summary>
     public string ExportCameraPathData()
     {
-        CameraPath cameraPath = GetComponent<CameraPath>();
+        var cameraPath = GetComponent("CameraPath");
         if (cameraPath == null)
         {
             Debug.LogWarning("CameraController: No CameraPath component found");
             return null;
         }
-        
+
         // Create a simple JSON representation
         System.Text.StringBuilder json = new System.Text.StringBuilder();
         json.AppendLine("{");
         json.AppendLine("  \"waypoints\": [");
-        
+
         for (int i = 0; i < cameraPath.waypoints.Count; i++)
         {
             var waypoint = cameraPath.waypoints[i];
@@ -999,7 +999,7 @@ public class CameraController : MonoBehaviour
             json.AppendLine($"      \"fov\": {waypoint.fov},");
             json.AppendLine($"      \"arrivalTime\": {waypoint.arrivalTime}");
             json.Append("    }");
-            
+
             if (i < cameraPath.waypoints.Count - 1)
             {
                 json.AppendLine(",");
@@ -1009,13 +1009,13 @@ public class CameraController : MonoBehaviour
                 json.AppendLine();
             }
         }
-        
+
         json.AppendLine("  ]");
         json.AppendLine("}");
-        
+
         string result = json.ToString();
         Debug.Log("Camera path data exported:\n" + result);
-        
+
         return result;
     }
 }

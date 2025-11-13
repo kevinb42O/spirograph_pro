@@ -19,14 +19,14 @@ public class SpirographUIManager : MonoBehaviour
     [Header("Active Rotor Tracking")]
     [Tooltip("The currently active rotor that UI controls")]
     public SpirographRoller activeRoller = null;
-    
+
     [Header("Per-Agent Control")]
     [Tooltip("The currently selected agent that the ENTIRE UI controls")]
     public PathAgent selectedAgent = null;
-    
+
     [Tooltip("Are we currently in per-agent control mode?")]
     public bool perAgentControlMode = false;
-    
+
     [Header("UI Elements - Auto-populated after generation")]
     public Slider speedSlider;
     public Text speedText;
@@ -44,36 +44,36 @@ public class SpirographUIManager : MonoBehaviour
     public Button toggleVisualsButton;
     public Button lineEffectsButton;
     public Button hideUIButton;
-    
+
     [Header("Color Picker Elements")]
     public Slider hueSlider;
     public Slider saturationSlider;
     public Slider valueSlider;
     public GameObject colorPreview;
     public Button[] colorPresetButtons;
-    
+
     [Header("Section Toggles")]
     public Button motionSectionToggle;
     public Button visualsSectionToggle;
     public Button colorSectionToggle;
     public Button environmentSectionToggle;
     public Button cameraSectionToggle;
-    
+
     [Header("Section GameObjects")]
     public GameObject motionSection;
     public GameObject visualsSection;
     public GameObject colorSection;
     public GameObject environmentSection;
     public GameObject cameraSection;
-    
+
     [Header("Skybox Dropdown")]
     public Dropdown skyboxDropdown;
-    
+
     [Header("Pattern Generator")]
     public Dropdown patternDropdown;
     public Button generatePatternButton;
     public Button clearPatternsButton;
-    
+
     [Header("Multi-Agent System")]
     public Toggle multiAgentToggle;
     public Slider agentCountSlider;
@@ -83,13 +83,13 @@ public class SpirographUIManager : MonoBehaviour
     public MultiAgentManager multiAgentManager;
     public SharedPathState sharedPathState;
     public AgentPanelUI agentPanelUI;
-    
+
     [Header("UI State")]
     private GameObject controlPanel;
     private bool isUIVisible = true;
     private Text panelTitleText; // Reference to panel title for dynamic updates
     private ScrollRect controlPanelScrollRect; // Reference to scroll rect for auto-scrolling
-    
+
     [Header("2025 Modern UI - Context System")]
     private GameObject contextBanner; // Large prominent banner showing WHO is being controlled
     private Text contextBannerText; // "CONTROLLING: MASTER ROTOR" or "CONTROLLING: AGENT #3"
@@ -97,17 +97,17 @@ public class SpirographUIManager : MonoBehaviour
     private CanvasGroup contextBannerGroup; // For smooth fade transitions
     private Image contextBannerAccent; // Color accent bar matching agent color
     private bool isTransitioningContext = false; // Prevent double transitions
-    
+
     [Header("Generate UI")]
     [Tooltip("Check this box to generate UI (will auto-uncheck after generation)")]
     public bool generateUI = false;
-    
+
     void OnValidate()
     {
         if (generateUI)
         {
             generateUI = false;
-            #if UNITY_EDITOR
+#if UNITY_EDITOR
             // Delay execution to next editor update to ensure proper serialization
             UnityEditor.EditorApplication.delayCall += () => {
                 if (this != null)
@@ -115,10 +115,10 @@ public class SpirographUIManager : MonoBehaviour
                     GenerateCompleteUI();
                 }
             };
-            #endif
+#endif
         }
     }
-    
+
     void Start()
     {
         // Find the control panel if it exists
@@ -130,7 +130,7 @@ public class SpirographUIManager : MonoBehaviour
                 controlPanel = canvas.transform.Find("ControlPanel")?.gameObject;
             }
         }
-        
+
         // Find and setup the hide button
         if (hideUIButton == null)
         {
@@ -144,24 +144,24 @@ public class SpirographUIManager : MonoBehaviour
                 }
             }
         }
-        
+
         if (hideUIButton != null)
         {
             hideUIButton.onClick.AddListener(ToggleUI);
         }
-        
+
         // Reconnect all UI elements at runtime (listeners from Edit mode don't persist)
         ReconnectUIElements();
-        
+
         // Connect Pattern Generator
         ConnectPatternGenerator();
-        
+
         // Connect Multi-Agent System
         ConnectMultiAgentSystem();
-        
+
         // Subscribe to PatternSpawner rotor change events
         SubscribeToPatternSpawner();
-        
+
         // Set initial active rotor
         if (activeRoller == null)
         {
@@ -171,14 +171,14 @@ public class SpirographUIManager : MonoBehaviour
                 Debug.Log($"✓ Initial active rotor set: {activeRoller.gameObject.name}");
             }
         }
-        
+
         // Subscribe to MultiAgentManager selection events
         if (multiAgentManager != null)
         {
             multiAgentManager.OnAgentSelected += OnAgentSelectedForControl;
             Debug.Log("✓ UI Manager subscribed to agent selection events");
         }
-        
+
         // Cache ScrollRect reference for auto-scroll functionality
         if (controlPanel != null)
         {
@@ -189,7 +189,7 @@ public class SpirographUIManager : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// Subscribe to PatternSpawner events to track active rotor changes
     /// </summary>
@@ -202,7 +202,7 @@ public class SpirographUIManager : MonoBehaviour
             Debug.Log("✓ UI Manager subscribed to PatternSpawner rotor change events");
         }
     }
-    
+
     /// <summary>
     /// ★★★ ULTIMATE PER-AGENT CONTROL ★★★
     /// Called when an agent is selected in the Agent Panel UI.
@@ -217,26 +217,26 @@ public class SpirographUIManager : MonoBehaviour
             ExitPerAgentControl();
             return;
         }
-        
+
         Debug.Log($"★★★ ULTIMATE PER-AGENT CONTROL ACTIVATED for Agent {agent.agentIndex} ★★★");
-        
+
         // Enter per-agent control mode
         perAgentControlMode = true;
         selectedAgent = agent;
-        
+
         // Enable individual settings mode on the agent
         agent.useIndividualSettings = true;
-        
+
         // Bind ALL UI controls to this agent's properties
         BindUIToSelectedAgent(agent);
-        
+
         // Update modern context banner
         StartCoroutine(TransitionToAgentContext(agent));
-        
+
         Debug.Log($"✓ All UI controls now bound to Agent {agent.agentIndex} - {agent.agentName}");
         Debug.Log($"✓ User has FULL CONTROL over this agent's motion, visuals, and color!");
     }
-    
+
     /// <summary>
     /// Bind ALL UI sliders, buttons, and controls to the selected agent
     /// This makes the entire main UI control THIS specific agent
@@ -244,13 +244,14 @@ public class SpirographUIManager : MonoBehaviour
     void BindUIToSelectedAgent(PathAgent agent)
     {
         if (agent == null) return;
-        
+
         // ========== SPEED SLIDER ==========
         if (speedSlider != null)
         {
             speedSlider.onValueChanged.RemoveAllListeners();
             speedSlider.value = agent.agentSpeed; // Set to agent's current value
-            speedSlider.onValueChanged.AddListener((value) => {
+            speedSlider.onValueChanged.AddListener((value) =>
+            {
                 // Clamp to safe range and prevent negative values
                 value = Mathf.Max(0f, Mathf.Clamp(value, speedSlider.minValue, speedSlider.maxValue));
                 agent.agentSpeed = value;
@@ -266,13 +267,14 @@ public class SpirographUIManager : MonoBehaviour
                 speedText.text = "Travel Speed: " + agent.agentSpeed.ToString("F1");
             }
         }
-        
+
         // ========== ROTATION SPEED SLIDER ==========
         if (rotationSpeedSlider != null)
         {
             rotationSpeedSlider.onValueChanged.RemoveAllListeners();
             rotationSpeedSlider.value = agent.agentRotationSpeed;
-            rotationSpeedSlider.onValueChanged.AddListener((value) => {
+            rotationSpeedSlider.onValueChanged.AddListener((value) =>
+            {
                 // Clamp to 0-1 range
                 value = Mathf.Clamp01(value);
                 agent.agentRotationSpeed = value;
@@ -280,13 +282,14 @@ public class SpirographUIManager : MonoBehaviour
                 Debug.Log($"Agent {agent.agentIndex} rotation speed: {value:F2}");
             });
         }
-        
+
         // ========== CYCLES SLIDER ==========
         if (cyclesSlider != null)
         {
             cyclesSlider.onValueChanged.RemoveAllListeners();
             cyclesSlider.value = agent.agentCycles;
-            cyclesSlider.onValueChanged.AddListener((value) => {
+            cyclesSlider.onValueChanged.AddListener((value) =>
+            {
                 // Ensure at least 1 cycle
                 int cycles = Mathf.Max(1, (int)value);
                 agent.agentCycles = cycles;
@@ -294,13 +297,14 @@ public class SpirographUIManager : MonoBehaviour
                 Debug.Log($"Agent {agent.agentIndex} cycles: {cycles}");
             });
         }
-        
+
         // ========== PEN DISTANCE SLIDER ==========
         if (penDistanceSlider != null)
         {
             penDistanceSlider.onValueChanged.RemoveAllListeners();
             penDistanceSlider.value = agent.agentPenDistance;
-            penDistanceSlider.onValueChanged.AddListener((value) => {
+            penDistanceSlider.onValueChanged.AddListener((value) =>
+            {
                 // Ensure non-negative
                 value = Mathf.Max(0f, value);
                 agent.agentPenDistance = value;
@@ -308,13 +312,14 @@ public class SpirographUIManager : MonoBehaviour
                 Debug.Log($"Agent {agent.agentIndex} pen distance: {value:F2}x");
             });
         }
-        
+
         // ========== LINE WIDTH SLIDER ==========
         if (lineWidthSlider != null)
         {
             lineWidthSlider.onValueChanged.RemoveAllListeners();
             lineWidthSlider.value = agent.agentLineWidth;
-            lineWidthSlider.onValueChanged.AddListener((value) => {
+            lineWidthSlider.onValueChanged.AddListener((value) =>
+            {
                 // Clamp to reasonable range
                 value = Mathf.Clamp(value, 0.01f, 2f);
                 agent.agentLineWidth = value;
@@ -323,13 +328,14 @@ public class SpirographUIManager : MonoBehaviour
                 Debug.Log($"Agent {agent.agentIndex} line width: {value:F2}");
             });
         }
-        
+
         // ========== LINE BRIGHTNESS SLIDER ==========
         if (lineBrightnessSlider != null)
         {
             lineBrightnessSlider.onValueChanged.RemoveAllListeners();
             lineBrightnessSlider.value = agent.agentLineBrightness;
-            lineBrightnessSlider.onValueChanged.AddListener((value) => {
+            lineBrightnessSlider.onValueChanged.AddListener((value) =>
+            {
                 // Clamp to 0-1 range
                 value = Mathf.Clamp01(value);
                 agent.agentLineBrightness = value;
@@ -337,65 +343,70 @@ public class SpirographUIManager : MonoBehaviour
                 Debug.Log($"Agent {agent.agentIndex} line brightness: {value:F2}");
             });
         }
-        
+
         // ========== COLOR SLIDERS (HSV) ==========
         if (hueSlider != null && saturationSlider != null && valueSlider != null && colorPreview != null)
         {
             // Extract current HSV from agent color
             float h, s, v;
             Color.RGBToHSV(agent.agentColor, out h, out s, out v);
-            
+
             hueSlider.onValueChanged.RemoveAllListeners();
             saturationSlider.onValueChanged.RemoveAllListeners();
             valueSlider.onValueChanged.RemoveAllListeners();
-            
+
             hueSlider.value = h;
             saturationSlider.value = s;
             valueSlider.value = v;
-            
-            System.Action updateAgentColor = () => {
+
+            System.Action updateAgentColor = () =>
+            {
                 float hueVal = hueSlider.value;
                 float satVal = saturationSlider.value;
                 float valVal = valueSlider.value;
                 Color newColor = Color.HSVToRGB(hueVal, satVal, valVal);
-                
+
                 // Update preview
                 Image preview = colorPreview.GetComponent<Image>();
                 if (preview != null) preview.color = newColor;
-                
+
                 // Change agent color
                 agent.SetColor(newColor);
                 Debug.Log($"Agent {agent.agentIndex} color changed");
             };
-            
-            hueSlider.onValueChanged.AddListener((val) => {
+
+            hueSlider.onValueChanged.AddListener((val) =>
+            {
                 updateAgentColor();
                 Text text = hueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                 if (text != null) text.text = val.ToString("F2");
             });
-            
-            saturationSlider.onValueChanged.AddListener((val) => {
+
+            saturationSlider.onValueChanged.AddListener((val) =>
+            {
                 updateAgentColor();
                 Text text = saturationSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                 if (text != null) text.text = val.ToString("F2");
             });
-            
-            valueSlider.onValueChanged.AddListener((val) => {
+
+            valueSlider.onValueChanged.AddListener((val) =>
+            {
                 updateAgentColor();
                 Text text = valueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                 if (text != null) text.text = val.ToString("F2");
             });
-            
+
             // Update preview immediately
             Image previewImg = colorPreview.GetComponent<Image>();
             if (previewImg != null) previewImg.color = agent.agentColor;
         }
-        
+
         // ========== PAUSE/RESUME BUTTON ==========
         if (pauseButton != null)
         {
             pauseButton.onClick.RemoveAllListeners();
-            pauseButton.onClick.AddListener(() => {
+            pauseButton.onClick.AddListener(() =>
+            {
                 if (agent.status == PathAgent.AgentStatus.Active)
                 {
                     agent.Pause();
@@ -411,7 +422,7 @@ public class SpirographUIManager : MonoBehaviour
                 }
                 Debug.Log($"Agent {agent.agentIndex} {(agent.isPaused ? "Paused" : "Resumed")}");
             });
-            
+
             // Update button text based on current state
             Text pauseText = pauseButton.GetComponentInChildren<Text>();
             if (pauseText != null)
@@ -419,25 +430,26 @@ public class SpirographUIManager : MonoBehaviour
                 pauseText.text = agent.isPaused ? "▶ RESUME" : "⏸ PAUSE";
             }
         }
-        
+
         // ========== RESET BUTTON ==========
         if (resetButton != null)
         {
             resetButton.onClick.RemoveAllListeners();
-            resetButton.onClick.AddListener(() => {
+            resetButton.onClick.AddListener(() =>
+            {
                 agent.ResetAgent();
                 Debug.Log($"Agent {agent.agentIndex} reset to starting position");
             });
         }
-        
+
         Debug.Log($"✓✓✓ ULTIMATE CONTROL: All {11} UI controls bound to Agent {agent.agentIndex}!");
         Debug.Log($"  → Speed, Rotation, Cycles, Pen Distance, Line Width, Brightness, HSV Color");
         Debug.Log($"  → Pause/Resume, Reset - EVERYTHING is now controlled per-agent!");
-        
+
         // Update panel title to show we're in per-agent control mode
         UpdatePanelTitle();
     }
-    
+
     /// <summary>
     /// Update the control panel title to reflect current control mode
     /// </summary>
@@ -464,7 +476,7 @@ public class SpirographUIManager : MonoBehaviour
                     }
                 }
             }
-            
+
             // Fallback: try global search
             if (panelTitleText == null)
             {
@@ -475,7 +487,7 @@ public class SpirographUIManager : MonoBehaviour
                 }
             }
         }
-        
+
         // Update both legacy title and modern context banner
         if (panelTitleText != null)
         {
@@ -493,11 +505,11 @@ public class SpirographUIManager : MonoBehaviour
                 panelTitleText.color = new Color(0.7f, 0.85f, 1f, 0.9f); // Default cyan
             }
         }
-        
+
         // Update modern context banner
         UpdateContextBanner();
     }
-    
+
     /// <summary>
     /// Scroll the control panel to the top (Motion Controls section)
     /// This provides instant visual feedback when selecting an agent
@@ -512,7 +524,7 @@ public class SpirographUIManager : MonoBehaviour
                 controlPanelScrollRect = controlPanel.GetComponent<ScrollRect>();
             }
         }
-        
+
         if (controlPanelScrollRect != null)
         {
             // Smoothly animate scroll to top
@@ -524,7 +536,7 @@ public class SpirographUIManager : MonoBehaviour
             Debug.LogWarning("[UIManager] Could not find ScrollRect for auto-scroll");
         }
     }
-    
+
     /// <summary>
     /// Animate smooth scroll to top of control panel
     /// </summary>
@@ -534,7 +546,7 @@ public class SpirographUIManager : MonoBehaviour
         float elapsed = 0f;
         float startValue = controlPanelScrollRect.verticalNormalizedPosition;
         float targetValue = 1f; // 1 = top, 0 = bottom
-        
+
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
@@ -544,10 +556,10 @@ public class SpirographUIManager : MonoBehaviour
             controlPanelScrollRect.verticalNormalizedPosition = Mathf.Lerp(startValue, targetValue, smoothT);
             yield return null;
         }
-        
+
         controlPanelScrollRect.verticalNormalizedPosition = targetValue;
     }
-    
+
     /// <summary>
     /// Exit per-agent control mode and return to master/rotor control
     /// EDGE CASE SAFE: Handles agent deletion, null agents, and invalid states
@@ -559,9 +571,9 @@ public class SpirographUIManager : MonoBehaviour
         {
             return;
         }
-        
+
         Debug.Log("Exiting per-agent control mode, returning to master control");
-        
+
         // Safely disable individual settings
         if (selectedAgent != null)
         {
@@ -574,13 +586,13 @@ public class SpirographUIManager : MonoBehaviour
                 Debug.LogWarning($"Could not disable individual settings on agent: {e.Message}");
             }
         }
-        
+
         perAgentControlMode = false;
         selectedAgent = null;
-        
+
         // Smooth transition to master context
         StartCoroutine(TransitionToMasterContext());
-        
+
         // Rebind UI to active rotor or master settings
         if (activeRoller != null)
         {
@@ -595,23 +607,23 @@ public class SpirographUIManager : MonoBehaviour
                 ConnectSlidersToActiveRotor();
             }
         }
-        
+
         // Update title back to normal
         UpdatePanelTitle();
-        
+
         Debug.Log("✓ Returned to master control mode");
     }
-    
+
     /// <summary>
     /// Called when the active rotor changes (new pattern spawned)
     /// </summary>
     void OnActiveRotorChanged(SpirographRoller newActiveRotor, SpirographRoller oldRotor)
     {
         Debug.Log($"[UI Manager] Active rotor changed! Old: {oldRotor?.gameObject.name ?? "None"}, New: {newActiveRotor?.gameObject.name ?? "None"}");
-        
+
         // Update active rotor reference
         activeRoller = newActiveRotor;
-        
+
         // Reconnect UI sliders to new active rotor
         if (activeRoller != null)
         {
@@ -619,7 +631,7 @@ public class SpirographUIManager : MonoBehaviour
             Debug.Log($"✓ UI now controlling new rotor: {activeRoller.gameObject.name}");
         }
     }
-    
+
     /// <summary>
     /// Connect all UI sliders to the currently active rotor
     /// </summary>
@@ -630,12 +642,13 @@ public class SpirographUIManager : MonoBehaviour
             Debug.LogWarning("[UIManager] Cannot connect sliders - no active rotor available");
             return;
         }
-        
+
         // Speed Slider
         if (speedSlider != null)
         {
             speedSlider.onValueChanged.RemoveAllListeners();
-            speedSlider.onValueChanged.AddListener((value) => {
+            speedSlider.onValueChanged.AddListener((value) =>
+            {
                 if (activeRoller != null)
                 {
                     activeRoller.speed = value;
@@ -653,40 +666,43 @@ public class SpirographUIManager : MonoBehaviour
             }
             Debug.Log($"✓ Speed slider connected to active rotor (current speed: {activeRoller.speed})");
         }
-        
+
         // Rotation Speed Slider
         if (rotationSpeedSlider != null)
         {
             rotationSpeedSlider.onValueChanged.RemoveAllListeners();
             rotationSpeedSlider.value = activeRoller.rotationSpeed;
-            rotationSpeedSlider.onValueChanged.AddListener((value) => {
+            rotationSpeedSlider.onValueChanged.AddListener((value) =>
+            {
                 if (activeRoller != null) activeRoller.rotationSpeed = value;
             });
         }
-        
+
         // Pen Distance Slider
         if (penDistanceSlider != null)
         {
             penDistanceSlider.onValueChanged.RemoveAllListeners();
             penDistanceSlider.value = activeRoller.penDistance;
-            penDistanceSlider.onValueChanged.AddListener((value) => {
+            penDistanceSlider.onValueChanged.AddListener((value) =>
+            {
                 if (activeRoller != null) activeRoller.penDistance = value;
             });
         }
-        
+
         // Cycles Slider
         if (cyclesSlider != null)
         {
             cyclesSlider.onValueChanged.RemoveAllListeners();
             cyclesSlider.value = activeRoller.cycles;
-            cyclesSlider.onValueChanged.AddListener((value) => {
+            cyclesSlider.onValueChanged.AddListener((value) =>
+            {
                 if (activeRoller != null) activeRoller.cycles = (int)value;
             });
         }
-        
+
         Debug.Log("✓ All UI sliders connected to active rotor");
     }
-    
+
     void ReconnectUIElements()
     {
         // Reconnect section toggles
@@ -700,7 +716,7 @@ public class SpirographUIManager : MonoBehaviour
             SetupSectionToggle(environmentSectionToggle, environmentSection);
         if (cameraSectionToggle != null && cameraSection != null)
             SetupSectionToggle(cameraSectionToggle, cameraSection);
-        
+
         // Reconnect camera buttons
         CameraController cameraController = FindFirstObjectByType<CameraController>();
         if (cameraController != null)
@@ -708,74 +724,81 @@ public class SpirographUIManager : MonoBehaviour
             if (lookAtButton != null)
             {
                 lookAtButton.onClick.RemoveAllListeners();
-                lookAtButton.onClick.AddListener(() => {
+                lookAtButton.onClick.AddListener(() =>
+                {
                     cameraController.SetCameraMode(CameraController.CameraMode.FreeFly);
                     Debug.Log("Camera Mode: Free Fly");
                 });
             }
-            
+
             if (smoothFollowButton != null)
             {
                 smoothFollowButton.onClick.RemoveAllListeners();
-                smoothFollowButton.onClick.AddListener(() => {
+                smoothFollowButton.onClick.AddListener(() =>
+                {
                     cameraController.SetCameraMode(CameraController.CameraMode.SmoothFollow);
                     Debug.Log("Camera Mode: Smooth Follow");
                 });
             }
-            
+
             if (autoOrbitButton != null)
             {
                 autoOrbitButton.onClick.RemoveAllListeners();
-                autoOrbitButton.onClick.AddListener(() => {
+                autoOrbitButton.onClick.AddListener(() =>
+                {
                     cameraController.SetCameraMode(CameraController.CameraMode.AutoOrbit);
                     Debug.Log("Camera Mode: Auto Orbit");
                 });
             }
         }
-        
+
         // Reconnect HSV sliders
         if (hueSlider != null && saturationSlider != null && valueSlider != null && colorPreview != null)
         {
             hueSlider.onValueChanged.RemoveAllListeners();
             saturationSlider.onValueChanged.RemoveAllListeners();
             valueSlider.onValueChanged.RemoveAllListeners();
-            
-            System.Action updateColorAndPreview = () => {
+
+            System.Action updateColorAndPreview = () =>
+            {
                 float h = hueSlider.value;
                 float s = saturationSlider.value;
                 float v = valueSlider.value;
                 Color newColor = Color.HSVToRGB(h, s, v);
-                
+
                 // Update preview
                 Image preview = colorPreview.GetComponent<Image>();
                 if (preview != null) preview.color = newColor;
-                
+
                 // Change line color on ACTIVE rotor - creates a NEW trail preserving the old one
                 if (activeRoller != null)
                 {
                     activeRoller.ChangeLineColor(newColor);
                 }
             };
-            
-            hueSlider.onValueChanged.AddListener((val) => {
+
+            hueSlider.onValueChanged.AddListener((val) =>
+            {
                 updateColorAndPreview();
                 Text text = hueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                 if (text != null) text.text = val.ToString("F2");
             });
-            
-            saturationSlider.onValueChanged.AddListener((val) => {
+
+            saturationSlider.onValueChanged.AddListener((val) =>
+            {
                 updateColorAndPreview();
                 Text text = saturationSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                 if (text != null) text.text = val.ToString("F2");
             });
-            
-            valueSlider.onValueChanged.AddListener((val) => {
+
+            valueSlider.onValueChanged.AddListener((val) =>
+            {
                 updateColorAndPreview();
                 Text text = valueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                 if (text != null) text.text = val.ToString("F2");
             });
         }
-        
+
         // Reconnect color   preset buttons
         if (colorPresetButtons != null && colorPresetButtons.Length > 0)
         {
@@ -785,60 +808,61 @@ public class SpirographUIManager : MonoBehaviour
                 new Color(1f, 0.4f, 0.7f), new Color(0.5f, 0.3f, 0.1f), new Color(0.8f, 0.8f, 0.8f),
                 new Color(0.5f, 0.5f, 0.5f), new Color(0.3f, 0.3f, 0.3f), new Color(1f, 0.8f, 0f)
             };
-            
+
             for (int i = 0; i < colorPresetButtons.Length && i < presetColors.Length; i++)
             {
                 if (colorPresetButtons[i] != null)
                 {
                     Button btn = colorPresetButtons[i];
                     Color color = presetColors[i];
-                    
+
                     btn.onClick.RemoveAllListeners();
-                    btn.onClick.AddListener(() => {
+                    btn.onClick.AddListener(() =>
+                    {
                         Debug.Log($"🎨 Preset button clicked! Color: {color}");
-                        
+
                         SpirographRoller roller = FindFirstObjectByType<SpirographRoller>();
                         if (roller == null)
                         {
                             Debug.LogError("❌ SpirographRoller not found!");
                             return;
                         }
-                        
+
                         try
                         {
                             // Update HSV sliders
                             float h, s, v;
                             Color.RGBToHSV(color, out h, out s, out v);
-                            
-                            if (hueSlider != null) 
+
+                            if (hueSlider != null)
                             {
                                 hueSlider.SetValueWithoutNotify(h);
                                 Text text = hueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                                 if (text != null) text.text = h.ToString("F2");
                             }
-                            if (saturationSlider != null) 
+                            if (saturationSlider != null)
                             {
                                 saturationSlider.SetValueWithoutNotify(s);
                                 Text text = saturationSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                                 if (text != null) text.text = s.ToString("F2");
                             }
-                            if (valueSlider != null) 
+                            if (valueSlider != null)
                             {
                                 valueSlider.SetValueWithoutNotify(v);
                                 Text text = valueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                                 if (text != null) text.text = v.ToString("F2");
                             }
-                            
+
                             // Change color
                             roller.ChangeLineColor(color);
-                            
+
                             // Update preview
                             if (colorPreview != null)
                             {
                                 Image preview = colorPreview.GetComponent<Image>();
                                 if (preview != null) preview.color = color;
                             }
-                            
+
                             Debug.Log($"✅ Color changed to {color}");
                         }
                         catch (System.Exception e)
@@ -848,15 +872,15 @@ public class SpirographUIManager : MonoBehaviour
                     });
                 }
             }
-            
+
             Debug.Log($"✓ Reconnected {colorPresetButtons.Length} color preset buttons!");
         }
-        
+
         // Reconnect skybox dropdown
         if (skyboxDropdown != null)
         {
             skyboxDropdown.onValueChanged.RemoveAllListeners();
-            
+
             SkyboxManager skyboxManager = FindFirstObjectByType<SkyboxManager>();
             if (skyboxManager == null)
             {
@@ -865,20 +889,21 @@ public class SpirographUIManager : MonoBehaviour
                 skyboxManager = managerObj.AddComponent<SkyboxManager>();
                 Debug.Log("✓ Created SkyboxManager");
             }
-            
+
             // Connect listener - changes skybox IMMEDIATELY when dropdown value changes
-            skyboxDropdown.onValueChanged.AddListener((index) => {
+            skyboxDropdown.onValueChanged.AddListener((index) =>
+            {
                 Debug.Log($"🌌 Skybox dropdown changed to index: {index}");
                 skyboxManager.SetSkybox(index);
             });
-            
+
             Debug.Log("✓ Skybox dropdown listener reconnected - will change skybox immediately!");
         }
         else
         {
             Debug.LogWarning("⚠ No color preset buttons found to reconnect!");
         }
-        
+
         // Reconnect remaining sliders to active rotor
         if (activeRoller != null)
         {
@@ -886,45 +911,48 @@ public class SpirographUIManager : MonoBehaviour
             if (lineWidthSlider != null)
             {
                 lineWidthSlider.onValueChanged.RemoveAllListeners();
-                lineWidthSlider.onValueChanged.AddListener((value) => {
+                lineWidthSlider.onValueChanged.AddListener((value) =>
+                {
                     if (activeRoller != null)
                     {
                         activeRoller.lineWidth = value;
                     }
                 });
             }
-            
+
             // Line Brightness Slider
             if (lineBrightnessSlider != null)
             {
                 lineBrightnessSlider.onValueChanged.RemoveAllListeners();
-                lineBrightnessSlider.onValueChanged.AddListener((value) => {
+                lineBrightnessSlider.onValueChanged.AddListener((value) =>
+                {
                     if (activeRoller != null)
                     {
                         activeRoller.lineBrightness = value;
                     }
                 });
             }
-            
+
             // Pen Distance Slider (already in ConnectSlidersToActiveRotor)
             // Cycles Slider (already in ConnectSlidersToActiveRotor)
-            
+
             // Object Rotation Speed Slider
             if (objectRotationSpeedSlider != null)
             {
                 objectRotationSpeedSlider.onValueChanged.RemoveAllListeners();
-                objectRotationSpeedSlider.onValueChanged.AddListener((value) => {
+                objectRotationSpeedSlider.onValueChanged.AddListener((value) =>
+                {
                     RotateParent rotateParent = FindFirstObjectByType<RotateParent>();
                     if (rotateParent != null)
                     {
                         // Use reflection to set the private rotationSpeedMultiplier field
-                        var field = typeof(RotateParent).GetField("rotationSpeedMultiplier", 
+                        var field = typeof(RotateParent).GetField("rotationSpeedMultiplier",
                             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                         if (field != null)
                         {
                             field.SetValue(rotateParent, value);
                         }
-                        
+
                         // Update the slider text if it exists
                         Text sliderText = objectRotationSpeedSlider.GetComponentInChildren<Text>();
                         if (sliderText != null)
@@ -935,12 +963,13 @@ public class SpirographUIManager : MonoBehaviour
                 });
             }
         }
-        
+
         // Reconnect pause button
         if (pauseButton != null)
         {
             pauseButton.onClick.RemoveAllListeners();
-            pauseButton.onClick.AddListener(() => {
+            pauseButton.onClick.AddListener(() =>
+            {
                 if (activeRoller != null)
                 {
                     activeRoller.TogglePause();
@@ -953,12 +982,13 @@ public class SpirographUIManager : MonoBehaviour
                 }
             });
         }
-        
+
         // Reconnect reset button
         if (resetButton != null)
         {
             resetButton.onClick.RemoveAllListeners();
-            resetButton.onClick.AddListener(() => {
+            resetButton.onClick.AddListener(() =>
+            {
                 if (activeRoller != null)
                 {
                     activeRoller.ResetSpirograph();
@@ -966,12 +996,13 @@ public class SpirographUIManager : MonoBehaviour
                 }
             });
         }
-        
+
         // Reconnect toggle visuals button
         if (toggleVisualsButton != null)
         {
             toggleVisualsButton.onClick.RemoveAllListeners();
-            toggleVisualsButton.onClick.AddListener(() => {
+            toggleVisualsButton.onClick.AddListener(() =>
+            {
                 if (activeRoller != null)
                 {
                     activeRoller.ToggleVisuals();
@@ -979,12 +1010,13 @@ public class SpirographUIManager : MonoBehaviour
                 }
             });
         }
-        
+
         // Reconnect line effects button
         if (lineEffectsButton != null)
         {
             lineEffectsButton.onClick.RemoveAllListeners();
-            lineEffectsButton.onClick.AddListener(() => {
+            lineEffectsButton.onClick.AddListener(() =>
+            {
                 if (activeRoller != null)
                 {
                     // Cycle through line effects using the lineEffectMode enum
@@ -995,10 +1027,10 @@ public class SpirographUIManager : MonoBehaviour
                 }
             });
         }
-        
+
         Debug.Log("✓ UI elements reconnected at runtime!");
     }
-    
+
     void Update()
     {
         // Toggle UI visibility with Enter key using new Input System
@@ -1008,16 +1040,16 @@ public class SpirographUIManager : MonoBehaviour
             ToggleUI();
         }
     }
-    
+
     void ToggleUI()
     {
         isUIVisible = !isUIVisible;
-        
+
         if (controlPanel != null)
         {
             StartCoroutine(AnimateUIToggle(controlPanel, isUIVisible));
         }
-        
+
         // Update button text with icon
         if (hideUIButton != null)
         {
@@ -1027,10 +1059,10 @@ public class SpirographUIManager : MonoBehaviour
                 buttonText.text = isUIVisible ? "⊗ HIDE" : "⊕ SHOW";
             }
         }
-        
+
         Debug.Log($"UI {(isUIVisible ? "Shown" : "Hidden")} (Press Enter to toggle)");
     }
-    
+
     IEnumerator AnimateUIToggle(GameObject panel, bool show)
     {
         // IMPORTANT: Must activate panel BEFORE animating if showing
@@ -1038,53 +1070,53 @@ public class SpirographUIManager : MonoBehaviour
         {
             panel.SetActive(true);
         }
-        
+
         CanvasGroup canvasGroup = panel.GetComponent<CanvasGroup>();
         if (canvasGroup == null)
         {
             canvasGroup = panel.AddComponent<CanvasGroup>();
         }
-        
+
         // If showing, start from hidden state
         if (show)
         {
             canvasGroup.alpha = 0f;
             panel.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
         }
-        
+
         float duration = UIConstants.TransitionNormal;
         float elapsed = 0f;
         float startAlpha = canvasGroup.alpha;
         float targetAlpha = show ? 1f : 0f;
-        
+
         Vector3 startScale = panel.transform.localScale;
         Vector3 targetScale = show ? Vector3.one : new Vector3(0.95f, 0.95f, 1f);
-        
+
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
             // Use UIConstants smooth easing for better feel
             float smoothT = UIConstants.SmoothEase(t);
-            
+
             canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, smoothT);
             panel.transform.localScale = Vector3.Lerp(startScale, targetScale, smoothT);
-            
+
             yield return null;
         }
-        
+
         canvasGroup.alpha = targetAlpha;
         panel.transform.localScale = targetScale;
         canvasGroup.interactable = show;
         canvasGroup.blocksRaycasts = show;
-        
+
         // Only deactivate if hiding
         if (!show)
         {
             panel.SetActive(false);
         }
     }
-    
+
     [ContextMenu("Generate Complete UI")]
     void GenerateCompleteUI()
     {
@@ -1096,41 +1128,41 @@ public class SpirographUIManager : MonoBehaviour
             eventSystem.AddComponent<InputSystemUIInputModule>();
             Debug.Log("✓ Created EventSystem with InputSystemUIInputModule");
         }
-        
+
         // Create Canvas
         GameObject canvasObj = new GameObject("SpirographCanvas");
         Canvas canvas = canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 100;
-        
+
         CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(UIConstants.CanvasReferenceWidth, UIConstants.CanvasReferenceHeight);
         scaler.matchWidthOrHeight = 0.5f; // Balance between width and height matching
-        
+
         canvasObj.AddComponent<GraphicRaycaster>();
-        
+
         // Create Hide UI Button (Top-Right Corner - ALWAYS VISIBLE) - Modern glassmorphic style
         hideUIButton = CreateModernButton(canvas.transform, "HideUIButton", new Vector2(-UIConstants.PanelPadding, -UIConstants.PanelPadding), new Vector2(90, UIConstants.ButtonHeight), "⊗ HIDE");
         RectTransform hideButtonRect = hideUIButton.GetComponent<RectTransform>();
         hideButtonRect.anchorMin = new Vector2(1, 1); // Top-right anchor
         hideButtonRect.anchorMax = new Vector2(1, 1);
         hideButtonRect.pivot = new Vector2(1, 1);
-        
+
         // Glassmorphic style for hide button using UIConstants
         Image hideButtonImage = hideUIButton.GetComponent<Image>();
         hideButtonImage.color = UIConstants.SectionBackground;
-        
+
         // Add subtle glow outline using UIConstants
         Outline hideOutline = hideUIButton.gameObject.AddComponent<Outline>();
         hideOutline.effectColor = UIConstants.CyanGlow;
         hideOutline.effectDistance = UIConstants.ShadowDistance;
-        
+
         Text hideButtonText = hideUIButton.GetComponentInChildren<Text>();
         hideButtonText.fontSize = UIConstants.FontSizeHeader;
         hideButtonText.fontStyle = FontStyle.Bold;
         hideButtonText.color = UIConstants.SoftCyanWhite;
-        
+
         // Create Panel Background - Modern Glassmorphism with cosmic theme using UIConstants
         GameObject panel = new GameObject("ControlPanel");
         panel.transform.SetParent(canvas.transform, false);
@@ -1140,25 +1172,25 @@ public class SpirographUIManager : MonoBehaviour
         panelRect.pivot = new Vector2(0, 0.5f);
         panelRect.anchoredPosition = new Vector2(UIConstants.PanelPadding, 0);
         panelRect.sizeDelta = new Vector2(340, -80); // Full height minus padding
-        
+
         Image panelImage = panel.AddComponent<Image>();
         panelImage.color = UIConstants.DeepSpaceGlass;
-        
+
         // Add Canvas Group for smooth transitions
         CanvasGroup panelGroup = panel.AddComponent<CanvasGroup>();
         panelGroup.alpha = 1f;
-        
+
         // Add subtle outer glow using UIConstants
         Shadow panelGlow = panel.AddComponent<Shadow>();
         panelGlow.effectColor = UIConstants.BlueGlow;
         panelGlow.effectDistance = UIConstants.GlowDistance;
         panelGlow.useGraphicAlpha = true;
-        
+
         // Add border accent using UIConstants
         Outline panelOutline = panel.AddComponent<Outline>();
         panelOutline.effectColor = UIConstants.CyanGlow;
         panelOutline.effectDistance = UIConstants.OutlineDistance;
-        
+
         // Add ScrollRect for scrolling
         ScrollRect panelScroll = panel.AddComponent<ScrollRect>();
         panelScroll.horizontal = false;
@@ -1167,7 +1199,7 @@ public class SpirographUIManager : MonoBehaviour
         panelScroll.movementType = ScrollRect.MovementType.Clamped;
         panelScroll.inertia = true;
         panelScroll.decelerationRate = 0.135f;
-        
+
         // Create Viewport for ScrollRect (fills the panel with padding)
         GameObject viewport = new GameObject("Viewport");
         viewport.transform.SetParent(panel.transform, false);
@@ -1177,15 +1209,15 @@ public class SpirographUIManager : MonoBehaviour
         viewportRect.pivot = new Vector2(0.5f, 0.5f);
         viewportRect.offsetMin = new Vector2(10, 10); // Padding
         viewportRect.offsetMax = new Vector2(-10, -10); // Padding
-        
+
         // Add mask to viewport
         Image viewportImage = viewport.AddComponent<Image>();
         viewportImage.color = Color.white; // Fully opaque white (mask hides it with showMaskGraphic=false)
         Mask viewportMask = viewport.AddComponent<Mask>();
         viewportMask.showMaskGraphic = false; // Don't render the image, but use it for masking
-        
+
         panelScroll.viewport = viewportRect;
-        
+
         // Create Content container (this will hold all our UI elements)
         GameObject content = new GameObject("Content");
         content.transform.SetParent(viewport.transform, false);
@@ -1195,7 +1227,7 @@ public class SpirographUIManager : MonoBehaviour
         contentRect.pivot = new Vector2(0.5f, 1);
         contentRect.anchoredPosition = new Vector2(0, 0);
         contentRect.sizeDelta = new Vector2(-20, 2000); // Width accounts for padding, height will be adjusted
-        
+
         // Add VerticalLayoutGroup to automatically stack elements and collapse gaps
         VerticalLayoutGroup contentLayout = content.AddComponent<VerticalLayoutGroup>();
         contentLayout.childControlWidth = true;
@@ -1204,21 +1236,21 @@ public class SpirographUIManager : MonoBehaviour
         contentLayout.childForceExpandHeight = false;
         contentLayout.spacing = UIConstants.SectionSpacing;
         contentLayout.padding = new RectOffset(0, 0, (int)UIConstants.SpacingXL, (int)UIConstants.SpacingXL);
-        
+
         // Add ContentSizeFitter to auto-adjust height based on content
         ContentSizeFitter contentFitter = content.AddComponent<ContentSizeFitter>();
         contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        
+
         panelScroll.content = contentRect;
-        
+
         // Store reference to control panel
         controlPanel = panel;
-        
+
         // Now parent all UI elements to 'content' instead of 'panel'
         Transform uiParent = content.transform;
-        
+
         float yPos = -20; // More top padding
-        
+
         // Add panel title
         GameObject titleObj = new GameObject("PanelTitle");
         titleObj.transform.SetParent(uiParent, false);
@@ -1228,12 +1260,12 @@ public class SpirographUIManager : MonoBehaviour
         titleRect.anchorMax = new Vector2(1, 1);
         titleRect.pivot = new Vector2(0.5f, 1);
         titleRect.sizeDelta = new Vector2(0, 35);
-        
+
         // Add LayoutElement for title
         LayoutElement titleLayout = titleObj.AddComponent<LayoutElement>();
         titleLayout.preferredHeight = 35;
         titleLayout.flexibleHeight = 0;
-        
+
         Text titleText = titleObj.AddComponent<Text>();
         titleText.text = "✦ SPIROGRAPH CONTROLS";
         titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -1241,112 +1273,112 @@ public class SpirographUIManager : MonoBehaviour
         titleText.fontStyle = FontStyle.Bold;
         titleText.color = UIConstants.BrightCyan;
         titleText.alignment = TextAnchor.MiddleCenter;
-        
+
         // Add subtle glow to title using UIConstants
         Shadow titleShadow = titleObj.AddComponent<Shadow>();
         titleShadow.effectColor = UIConstants.BlueGlow;
         titleShadow.effectDistance = UIConstants.GlowDistance;
-        
+
         yPos -= 55;
-        
+
         // ============================================================
         // MOTION SECTION
         // ============================================================
         motionSectionToggle = CreateSectionHeader(uiParent, "MotionHeader", new Vector2(15, yPos), "⚡ MOTION & SPEED", true);
         yPos -= 45;
-        
+
         motionSection = CreateSection(uiParent, "MotionSection", new Vector2(15, yPos));
         float motionYPos = -10;
-        
+
         // Speed Slider
-        speedSlider = CreateModernSlider(motionSection.transform, "SpeedSlider", new Vector2(0, motionYPos), 0f, 750f, 
+        speedSlider = CreateModernSlider(motionSection.transform, "SpeedSlider", new Vector2(0, motionYPos), 0f, 750f,
             0f, out speedText, "Travel Speed", "0.0");
         motionYPos -= 70;
-        
+
         // Cycles Slider
         Text cyclesText;
-        cyclesSlider = CreateModernSlider(motionSection.transform, "CyclesSlider", new Vector2(0, motionYPos), 1f, 500f, 
+        cyclesSlider = CreateModernSlider(motionSection.transform, "CyclesSlider", new Vector2(0, motionYPos), 1f, 500f,
             10f, out cyclesText, "Cycles", "10");
         cyclesSlider.wholeNumbers = true;
         motionYPos -= 70;
-        
+
         // Rotation Speed Slider
         Text rotationSpeedText;
-        rotationSpeedSlider = CreateModernSlider(motionSection.transform, "RotationSpeedSlider", new Vector2(0, motionYPos), 0f, 1f, 
+        rotationSpeedSlider = CreateModernSlider(motionSection.transform, "RotationSpeedSlider", new Vector2(0, motionYPos), 0f, 1f,
             0.5f, out rotationSpeedText, "Rotation Speed", "0.5");
         motionYPos -= 70;
-        
+
         // Object Rotation Speed Slider
         Text objectRotationSpeedText;
-        objectRotationSpeedSlider = CreateModernSlider(motionSection.transform, "ObjectRotationSpeedSlider", new Vector2(0, motionYPos), 0f, 100f, 
+        objectRotationSpeedSlider = CreateModernSlider(motionSection.transform, "ObjectRotationSpeedSlider", new Vector2(0, motionYPos), 0f, 100f,
             1f, out objectRotationSpeedText, "Object Rotation", "1.0");
         motionYPos -= 70;
-        
+
         // Pen Distance Slider
         Text penDistanceText;
-        penDistanceSlider = CreateModernSlider(motionSection.transform, "PenDistanceSlider", new Vector2(0, motionYPos), 0f, 5f, 
+        penDistanceSlider = CreateModernSlider(motionSection.transform, "PenDistanceSlider", new Vector2(0, motionYPos), 0f, 5f,
             0.3f, out penDistanceText, "Rotor Radius", "0.30x");
         motionYPos -= 75;
-        
+
         // Set motion section height
         RectTransform motionRect = motionSection.GetComponent<RectTransform>();
         float motionHeight = Mathf.Abs(motionYPos) + 10;
         motionRect.sizeDelta = new Vector2(0, motionHeight);
         LayoutElement motionLayout = motionSection.GetComponent<LayoutElement>();
         if (motionLayout != null) motionLayout.preferredHeight = motionHeight;
-        
+
         // ============================================================
         // VISUALS SECTION
         // ============================================================
         visualsSectionToggle = CreateSectionHeader(uiParent, "VisualsHeader", new Vector2(15, yPos), "🎨 VISUAL EFFECTS", true);
         yPos -= 45;
-        
+
         visualsSection = CreateSection(uiParent, "VisualsSection", new Vector2(15, yPos));
         float visualsYPos = -10;
-        
+
         // Line Width Slider
         Text lineWidthText;
-        lineWidthSlider = CreateModernSlider(visualsSection.transform, "LineWidthSlider", new Vector2(0, visualsYPos), 0.01f, 2f, 
+        lineWidthSlider = CreateModernSlider(visualsSection.transform, "LineWidthSlider", new Vector2(0, visualsYPos), 0.01f, 2f,
             0.3f, out lineWidthText, "Line Width", "0.30");
         visualsYPos -= 70;
-        
+
         // Line Brightness Slider
         Text lineBrightnessText;
-        lineBrightnessSlider = CreateModernSlider(visualsSection.transform, "LineBrightnessSlider", new Vector2(0, visualsYPos), 0f, 1f, 
+        lineBrightnessSlider = CreateModernSlider(visualsSection.transform, "LineBrightnessSlider", new Vector2(0, visualsYPos), 0f, 1f,
             1f, out lineBrightnessText, "Line Brightness", "1.00");
         visualsYPos -= 75;
-        
+
         // Pause/Reset Buttons
         pauseButton = CreateModernButton(visualsSection.transform, "PauseButton", new Vector2(0, visualsYPos), new Vector2(140, 38), "⏸ PAUSE");
         resetButton = CreateModernButton(visualsSection.transform, "ResetButton", new Vector2(150, visualsYPos), new Vector2(140, 38), "↻ RESET");
         visualsYPos -= 50;
-        
+
         // Toggle Visuals Button
         toggleVisualsButton = CreateModernButton(visualsSection.transform, "ToggleVisualsButton", new Vector2(0, visualsYPos), new Vector2(290, 38), "👁 SHOW/HIDE");
         visualsYPos -= 50;
-        
+
         // Line Effects Cycle Button
         lineEffectsButton = CreateModernButton(visualsSection.transform, "LineEffectsButton", new Vector2(0, visualsYPos), new Vector2(290, 38), "✨ LINE FX: Normal");
         Image effectsImg = lineEffectsButton.GetComponent<Image>();
         effectsImg.color = new Color(0.15f, 0.08f, 0.20f, 0.8f);
         visualsYPos -= 55;
-        
+
         // Set visuals section height
         RectTransform visualsRect = visualsSection.GetComponent<RectTransform>();
         float visualsHeight = Mathf.Abs(visualsYPos) + 10;
         visualsRect.sizeDelta = new Vector2(0, visualsHeight);
         LayoutElement visualsLayout = visualsSection.GetComponent<LayoutElement>();
         if (visualsLayout != null) visualsLayout.preferredHeight = visualsHeight;
-        
+
         // ============================================================
         // COLOR PICKER SECTION
         // ============================================================
         colorSectionToggle = CreateSectionHeader(uiParent, "ColorHeader", new Vector2(15, yPos), "🌈 COLOR PICKER", true);
         yPos -= 45;
-        
+
         colorSection = CreateSection(uiParent, "ColorSection", new Vector2(15, yPos));
         float colorYPos = -10;
-        
+
         // Color Preview Box
         GameObject previewObj = new GameObject("ColorPreview");
         previewObj.transform.SetParent(colorSection.transform, false);
@@ -1363,27 +1395,27 @@ public class SpirographUIManager : MonoBehaviour
         previewOutline.effectDistance = new Vector2(2, -2);
         colorPreview = previewObj;
         colorYPos -= 60;
-        
+
         // HSV Sliders
         Text hueText;
-        hueSlider = CreateModernSlider(colorSection.transform, "HueSlider", new Vector2(0, colorYPos), 0f, 1f, 
+        hueSlider = CreateModernSlider(colorSection.transform, "HueSlider", new Vector2(0, colorYPos), 0f, 1f,
             0.5f, out hueText, "Hue", "0.50");
         colorYPos -= 70;
-        
+
         Text satText;
-        saturationSlider = CreateModernSlider(colorSection.transform, "SaturationSlider", new Vector2(0, colorYPos), 0f, 1f, 
+        saturationSlider = CreateModernSlider(colorSection.transform, "SaturationSlider", new Vector2(0, colorYPos), 0f, 1f,
             0.8f, out satText, "Saturation", "0.80");
         colorYPos -= 70;
-        
+
         Text valText;
-        valueSlider = CreateModernSlider(colorSection.transform, "ValueSlider", new Vector2(0, colorYPos), 0f, 1f, 
+        valueSlider = CreateModernSlider(colorSection.transform, "ValueSlider", new Vector2(0, colorYPos), 0f, 1f,
             1f, out valText, "Brightness", "1.00");
         colorYPos -= 75;
-        
+
         // Color Presets (2 rows of 6)
         AddColorPresetLabel(colorSection.transform, new Vector2(0, colorYPos), "Quick Colors:");
         colorYPos -= 25;
-        
+
         colorPresetButtons = new Button[16];
         Color[] presetColors = new Color[] {
             Color.white, Color.black, Color.red, new Color(1f, 0.5f, 0f), Color.yellow, Color.green,
@@ -1391,35 +1423,35 @@ public class SpirographUIManager : MonoBehaviour
             new Color(1f, 0.4f, 0.7f), new Color(0.5f, 0.3f, 0.1f), new Color(0.8f, 0.8f, 0.8f),
             new Color(0.5f, 0.5f, 0.5f), new Color(0.3f, 0.3f, 0.3f), new Color(1f, 0.8f, 0f)
         };
-        
+
         for (int i = 0; i < 16; i++)
         {
             int row = i / 8;
             int col = i % 8;
             float xPos = col * 36f;
             float yPosPreset = colorYPos - (row * 32f);
-            colorPresetButtons[i] = CreateColorPresetButton(colorSection.transform, $"Preset{i}", 
+            colorPresetButtons[i] = CreateColorPresetButton(colorSection.transform, $"Preset{i}",
                 new Vector2(xPos, yPosPreset), presetColors[i]);
         }
         colorYPos -= 72;
-        
+
         // Set color section height
         RectTransform colorRect = colorSection.GetComponent<RectTransform>();
         float colorHeight = Mathf.Abs(colorYPos) + 10;
         colorRect.sizeDelta = new Vector2(0, colorHeight);
         LayoutElement colorLayout = colorSection.GetComponent<LayoutElement>();
         if (colorLayout != null) colorLayout.preferredHeight = colorHeight;
-        
+
         // ============================================================
         // ENVIRONMENT SECTION
         // ============================================================
         environmentSectionToggle = CreateSectionHeader(uiParent, "EnvironmentHeader", new Vector2(15, yPos), "🌌 ENVIRONMENT", false);
         yPos -= 45;
-        
+
         environmentSection = CreateSection(uiParent, "EnvironmentSection", new Vector2(15, yPos));
         environmentSection.SetActive(false); // Collapsed by default
         float envYPos = -10;
-        
+
         // Skybox Label
         GameObject skyboxLabelObj = new GameObject("SkyboxLabel");
         skyboxLabelObj.transform.SetParent(environmentSection.transform, false);
@@ -1437,11 +1469,11 @@ public class SpirographUIManager : MonoBehaviour
         skyboxLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
         skyboxLabel.alignment = TextAnchor.MiddleLeft;
         envYPos -= 28;
-        
+
         // Skybox Dropdown
         skyboxDropdown = CreateModernDropdown(environmentSection.transform, "SkyboxDropdown", new Vector2(0, envYPos));
         envYPos -= 80;
-        
+
         // Pattern Generator Label
         GameObject patternLabelObj = new GameObject("PatternGeneratorLabel");
         patternLabelObj.transform.SetParent(environmentSection.transform, false);
@@ -1459,25 +1491,25 @@ public class SpirographUIManager : MonoBehaviour
         patternLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
         patternLabel.alignment = TextAnchor.MiddleLeft;
         envYPos -= 28;
-        
+
         // Pattern Dropdown
         patternDropdown = CreatePatternDropdown(environmentSection.transform, "PatternDropdown", new Vector2(0, envYPos));
         envYPos -= 50;
-        
+
         // Generate and Clear Buttons
         generatePatternButton = CreateModernButton(environmentSection.transform, "GeneratePatternButton", new Vector2(0, envYPos), new Vector2(140, 38), "✦ GENERATE");
         Image generateImg = generatePatternButton.GetComponent<Image>();
         generateImg.color = new Color(0.15f, 0.25f, 0.08f, 0.8f); // Green tint
-        
+
         clearPatternsButton = CreateModernButton(environmentSection.transform, "ClearPatternsButton", new Vector2(150, envYPos), new Vector2(140, 38), "✖ CLEAR ALL");
         Image clearImg = clearPatternsButton.GetComponent<Image>();
         clearImg.color = new Color(0.25f, 0.08f, 0.08f, 0.8f); // Red tint
         envYPos -= 65;
-        
+
         // ============================================================
         // MULTI-AGENT SYSTEM CONTROLS
         // ============================================================
-        
+
         // Multi-Agent Mode Section Label
         GameObject multiAgentLabelObj = new GameObject("MultiAgentLabel");
         multiAgentLabelObj.transform.SetParent(environmentSection.transform, false);
@@ -1495,11 +1527,11 @@ public class SpirographUIManager : MonoBehaviour
         multiAgentLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
         multiAgentLabel.alignment = TextAnchor.MiddleLeft;
         envYPos -= 28;
-        
+
         // Multi-Agent Toggle
         multiAgentToggle = CreateModernToggle(environmentSection.transform, "MultiAgentToggle", new Vector2(0, envYPos), "Enable Multi-Agent Mode");
         envYPos -= 45;
-        
+
         // Agent Count Slider (initially hidden)
         GameObject agentCountContainer = new GameObject("AgentCountContainer");
         agentCountContainer.transform.SetParent(environmentSection.transform, false);
@@ -1510,12 +1542,12 @@ public class SpirographUIManager : MonoBehaviour
         agentCountContainerRect.anchoredPosition = new Vector2(0, envYPos);
         agentCountContainerRect.sizeDelta = new Vector2(290, 70);
         agentCountContainer.SetActive(false); // Hidden until multi-agent enabled
-        
-        agentCountSlider = CreateModernSlider(agentCountContainer.transform, "AgentCountSlider", new Vector2(0, 0), 1f, 16f, 
+
+        agentCountSlider = CreateModernSlider(agentCountContainer.transform, "AgentCountSlider", new Vector2(0, 0), 1f, 16f,
             4f, out agentCountText, "Agent Count", "4");
         agentCountSlider.wholeNumbers = true;
         envYPos -= 75;
-        
+
         // Agent Color Mode Dropdown (initially hidden)
         GameObject colorModeContainer = new GameObject("ColorModeContainer");
         colorModeContainer.transform.SetParent(environmentSection.transform, false);
@@ -1526,7 +1558,7 @@ public class SpirographUIManager : MonoBehaviour
         colorModeContainerRect.anchoredPosition = new Vector2(0, envYPos);
         colorModeContainerRect.sizeDelta = new Vector2(290, 70);
         colorModeContainer.SetActive(false); // Hidden until multi-agent enabled
-        
+
         GameObject colorModeLabelObj = new GameObject("ColorModeLabel");
         colorModeLabelObj.transform.SetParent(colorModeContainer.transform, false);
         RectTransform colorModeLabelRect = colorModeLabelObj.AddComponent<RectTransform>();
@@ -1542,11 +1574,11 @@ public class SpirographUIManager : MonoBehaviour
         colorModeLabel.fontStyle = FontStyle.Bold;
         colorModeLabel.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
         colorModeLabel.alignment = TextAnchor.MiddleLeft;
-        
-        agentColorModeDropdown = CreateCompactDropdown(colorModeContainer.transform, "AgentColorModeDropdown", new Vector2(0, -25), 
+
+        agentColorModeDropdown = CreateCompactDropdown(colorModeContainer.transform, "AgentColorModeDropdown", new Vector2(0, -25),
             new string[] { "Master", "Rainbow", "Individual", "Custom" });
         envYPos -= 75;
-        
+
         // Agent Spawn Mode Dropdown (initially hidden)
         GameObject spawnModeContainer = new GameObject("SpawnModeContainer");
         spawnModeContainer.transform.SetParent(environmentSection.transform, false);
@@ -1557,7 +1589,7 @@ public class SpirographUIManager : MonoBehaviour
         spawnModeContainerRect.anchoredPosition = new Vector2(0, envYPos);
         spawnModeContainerRect.sizeDelta = new Vector2(290, 70);
         spawnModeContainer.SetActive(false); // Hidden until multi-agent enabled
-        
+
         GameObject spawnModeLabelObj = new GameObject("SpawnModeLabel");
         spawnModeLabelObj.transform.SetParent(spawnModeContainer.transform, false);
         RectTransform spawnModeLabelRect = spawnModeLabelObj.AddComponent<RectTransform>();
@@ -1573,42 +1605,42 @@ public class SpirographUIManager : MonoBehaviour
         spawnModeLabel.fontStyle = FontStyle.Bold;
         spawnModeLabel.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
         spawnModeLabel.alignment = TextAnchor.MiddleLeft;
-        
-        agentSpawnModeDropdown = CreateCompactDropdown(spawnModeContainer.transform, "AgentSpawnModeDropdown", new Vector2(0, -25), 
+
+        agentSpawnModeDropdown = CreateCompactDropdown(spawnModeContainer.transform, "AgentSpawnModeDropdown", new Vector2(0, -25),
             new string[] { "Simultaneous", "Sequential", "Staggered", "Competitive" });
         envYPos -= 80;
-        
+
         // Set environment section height
         RectTransform envRect = environmentSection.GetComponent<RectTransform>();
         float envHeight = Mathf.Abs(envYPos) + 10;
         envRect.sizeDelta = new Vector2(0, envHeight);
         LayoutElement envLayout = environmentSection.GetComponent<LayoutElement>();
         if (envLayout != null) envLayout.preferredHeight = envHeight;
-        
+
         // ============================================================
         // CAMERA SECTION
         // ============================================================
         cameraSectionToggle = CreateSectionHeader(uiParent, "CameraHeader", new Vector2(15, yPos), "📷 CAMERA CONTROLS", false);
         yPos -= 45;
-        
+
         cameraSection = CreateSection(uiParent, "CameraSection", new Vector2(15, yPos));
         cameraSection.SetActive(false); // Collapsed by default
         float cameraYPos = -10;
-        
+
         // Camera Mode Buttons - IMPORTANT: These are assigned to public fields
         lookAtButton = CreateModernButton(cameraSection.transform, "LookAtButton", new Vector2(0, cameraYPos), new Vector2(140, 38), "✈ Free Fly");
         smoothFollowButton = CreateModernButton(cameraSection.transform, "SmoothFollowButton", new Vector2(150, cameraYPos), new Vector2(140, 38), "◎ Follow");
         cameraYPos -= 50;
-        
+
         autoOrbitButton = CreateModernButton(cameraSection.transform, "AutoOrbitButton", new Vector2(0, cameraYPos), new Vector2(290, 38), "🎬 AUTO ORBIT");
         Image orbitImg = autoOrbitButton.GetComponent<Image>();
         orbitImg.color = new Color(0.15f, 0.05f, 0.25f, 0.8f);
         cameraYPos -= 50;
-        
+
         // ============================================================
         // CINEMATIC PRESETS
         // ============================================================
-        
+
         // Presets Label
         GameObject presetsLabelObj = new GameObject("PresetsLabel");
         presetsLabelObj.transform.SetParent(cameraSection.transform, false);
@@ -1626,27 +1658,28 @@ public class SpirographUIManager : MonoBehaviour
         presetsLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
         presetsLabel.alignment = TextAnchor.MiddleLeft;
         cameraYPos -= 28;
-        
+
         // Camera Presets Dropdown
-        Dropdown presetsDropdown = CreateCompactDropdown(cameraSection.transform, "CameraPresetsDropdown", 
-            new Vector2(0, cameraYPos), CameraPresets.GetPresetNames());
+        string[] presetNames = new string[] { "Fly-Around", "Zoom In", "Dolly Zoom", "Reveal", "Top-Down", "Spiral In", "Figure-8" };
+        Dropdown presetsDropdown = CreateCompactDropdown(cameraSection.transform, "CameraPresetsDropdown",
+            new Vector2(0, cameraYPos), new List<string>(presetNames));
         cameraYPos -= 40;
-        
+
         // Play Preset Button
         Button playPresetButton = CreateModernButton(cameraSection.transform, "PlayPresetButton", new Vector2(0, cameraYPos), new Vector2(140, 35), "▶ PLAY");
         Image playPresetImg = playPresetButton.GetComponent<Image>();
         playPresetImg.color = new Color(0.05f, 0.20f, 0.15f, 0.8f); // Green
-        
+
         // Stop Preset Button
         Button stopPresetButton = CreateModernButton(cameraSection.transform, "StopPresetButton", new Vector2(150, cameraYPos), new Vector2(140, 35), "⏹ STOP");
         Image stopPresetImg = stopPresetButton.GetComponent<Image>();
         stopPresetImg.color = new Color(0.20f, 0.05f, 0.05f, 0.8f); // Red
         cameraYPos -= 45;
-        
+
         // ============================================================
         // CAMERA PATH WAYPOINTS
         // ============================================================
-        
+
         // Waypoints Label
         GameObject waypointsLabelObj = new GameObject("WaypointsLabel");
         waypointsLabelObj.transform.SetParent(cameraSection.transform, false);
@@ -1664,27 +1697,27 @@ public class SpirographUIManager : MonoBehaviour
         waypointsLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
         waypointsLabel.alignment = TextAnchor.MiddleLeft;
         cameraYPos -= 28;
-        
+
         // Add Waypoint Button
         Button addWaypointButton = CreateModernButton(cameraSection.transform, "AddWaypointButton", new Vector2(0, cameraYPos), new Vector2(140, 35), "+ WAYPOINT");
-        
+
         // Clear Waypoints Button
         Button clearWaypointsButton = CreateModernButton(cameraSection.transform, "ClearWaypointsButton", new Vector2(150, cameraYPos), new Vector2(140, 35), "✖ CLEAR");
         cameraYPos -= 42;
-        
+
         // Play Path Button
         Button playPathButton = CreateModernButton(cameraSection.transform, "PlayPathButton", new Vector2(0, cameraYPos), new Vector2(140, 35), "▶ PLAY PATH");
         Image playPathImg = playPathButton.GetComponent<Image>();
         playPathImg.color = new Color(0.05f, 0.15f, 0.25f, 0.8f); // Blue
-        
+
         // Stop Path Button
         Button stopPathButton = CreateModernButton(cameraSection.transform, "StopPathButton", new Vector2(150, cameraYPos), new Vector2(140, 35), "⏹ STOP PATH");
         cameraYPos -= 45;
-        
+
         // ============================================================
         // ADVANCED CAMERA FEATURES
         // ============================================================
-        
+
         // Camera Features Label
         GameObject featuresLabelObj = new GameObject("FeaturesLabel");
         featuresLabelObj.transform.SetParent(cameraSection.transform, false);
@@ -1702,197 +1735,242 @@ public class SpirographUIManager : MonoBehaviour
         featuresLabel.color = new Color(0.7f, 0.85f, 1f, 0.9f);
         featuresLabel.alignment = TextAnchor.MiddleLeft;
         cameraYPos -= 28;
-        
+
         // Recording Mode Toggle
         Toggle recordingToggle = CreateModernToggle(cameraSection.transform, "RecordingToggle", new Vector2(0, cameraYPos), "🎥 Recording Mode");
         cameraYPos -= 40;
-        
+
         // Camera Shake Toggle
         Toggle shakeToggle = CreateModernToggle(cameraSection.transform, "ShakeToggle", new Vector2(0, cameraYPos), "📳 Camera Shake");
         cameraYPos -= 40;
-        
+
         // Auto-Framing Toggle
         Toggle autoFramingToggle = CreateModernToggle(cameraSection.transform, "AutoFramingToggle", new Vector2(0, cameraYPos), "🎯 Auto-Framing");
         cameraYPos -= 40;
-        
+
         // Multi-Agent Focus Toggle
         Toggle multiAgentFocusToggle = CreateModernToggle(cameraSection.transform, "MultiAgentFocusToggle", new Vector2(0, cameraYPos), "👥 Multi-Agent Focus");
         cameraYPos -= 50;
-        
-        #if UNITY_EDITOR
+
+#if UNITY_EDITOR
         // Force serialization of button references
         if (lookAtButton != null) UnityEditor.EditorUtility.SetDirty(lookAtButton.gameObject);
         if (smoothFollowButton != null) UnityEditor.EditorUtility.SetDirty(smoothFollowButton.gameObject);
         if (autoOrbitButton != null) UnityEditor.EditorUtility.SetDirty(autoOrbitButton.gameObject);
-        #endif
-        
+#endif
+
         // Connect camera buttons to CameraController
         CameraController cameraController = FindFirstObjectByType<CameraController>();
         if (cameraController != null)
         {
-            lookAtButton.onClick.AddListener(() => {
+            lookAtButton.onClick.AddListener(() =>
+            {
                 cameraController.SetCameraMode(CameraController.CameraMode.FreeFly);
                 Debug.Log("Camera Mode: Free Fly");
             });
-            
-            smoothFollowButton.onClick.AddListener(() => {
+
+            smoothFollowButton.onClick.AddListener(() =>
+            {
                 cameraController.SetCameraMode(CameraController.CameraMode.SmoothFollow);
                 Debug.Log("Camera Mode: Smooth Follow");
             });
-            
-            autoOrbitButton.onClick.AddListener(() => {
+
+            autoOrbitButton.onClick.AddListener(() =>
+            {
                 cameraController.SetCameraMode(CameraController.CameraMode.AutoOrbit);
                 Debug.Log("Camera Mode: Auto Orbit");
             });
-            
+
             Debug.Log("✓ Camera buttons connected to CameraController!");
-            
+
             // ============================================================
             // CONNECT CINEMATIC PRESETS
             // ============================================================
-            
+
             // Find or create CameraPresets component
-            CameraPresets cameraPresets = cameraController.GetComponent<CameraPresets>();
+            Component cameraPresets = cameraController.GetComponent("CameraPresets");
             if (cameraPresets == null)
             {
-                cameraPresets = cameraController.gameObject.AddComponent<CameraPresets>();
+                var presetsType = System.Type.GetType("CameraPresets");
+                if (presetsType != null) cameraPresets = cameraController.gameObject.AddComponent(presetsType);
                 Debug.Log("✓ Created CameraPresets component");
             }
-            
+
             // Connect preset dropdown and buttons
-            playPresetButton.onClick.AddListener(() => {
+            playPresetButton.onClick.AddListener(() =>
+            {
                 int selectedIndex = presetsDropdown.value;
-                cameraPresets.ExecutePreset(selectedIndex);
+                if (cameraPresets != null)
+                {
+                    var method = cameraPresets.GetType().GetMethod("ExecutePreset");
+                    if (method != null) method.Invoke(cameraPresets, new object[] { selectedIndex });
+                }
                 Debug.Log($"🎬 Playing preset: {presetsDropdown.options[selectedIndex].text}");
             });
-            
-            stopPresetButton.onClick.AddListener(() => {
-                cameraPresets.StopCurrentPreset();
+
+            stopPresetButton.onClick.AddListener(() =>
+            {
+                if (cameraPresets != null)
+                {
+                    var method = cameraPresets.GetType().GetMethod("StopCurrentPreset");
+                    if (method != null) method.Invoke(cameraPresets, null);
+                }
                 Debug.Log("🎬 Stopped current preset");
             });
-            
+
             // ============================================================
             // CONNECT CAMERA PATH
             // ============================================================
-            
+
             // Find or create CameraPath component
-            CameraPath cameraPath = cameraController.GetComponent<CameraPath>();
+            Component cameraPath = cameraController.GetComponent("CameraPath");
             if (cameraPath == null)
             {
-                cameraPath = cameraController.gameObject.AddComponent<CameraPath>();
+                var pathType = System.Type.GetType("CameraPath");
+                if (pathType != null) cameraPath = cameraController.gameObject.AddComponent(pathType);
                 Debug.Log("✓ Created CameraPath component");
             }
-            
+
             // Connect waypoint buttons
-            addWaypointButton.onClick.AddListener(() => {
-                cameraPath.AddWaypointAtCurrentPosition();
-                Debug.Log($"📍 Added waypoint (Total: {cameraPath.waypoints.Count})");
+            addWaypointButton.onClick.AddListener(() =>
+            {
+                if (cameraPath != null)
+                {
+                    var method = cameraPath.GetType().GetMethod("AddWaypointAtCurrentPosition");
+                    if (method != null) method.Invoke(cameraPath, null);
+                    var waypoints = cameraPath.GetType().GetField("waypoints");
+                    int count = waypoints != null ? ((System.Collections.IList)waypoints.GetValue(cameraPath)).Count : 0;
+                    Debug.Log($"📍 Added waypoint (Total: {count})");
+                }
             });
-            
-            clearWaypointsButton.onClick.AddListener(() => {
-                cameraPath.ClearWaypoints();
+
+            clearWaypointsButton.onClick.AddListener(() =>
+            {
+                if (cameraPath != null)
+                {
+                    var method = cameraPath.GetType().GetMethod("ClearWaypoints");
+                    if (method != null) method.Invoke(cameraPath, null);
+                }
                 Debug.Log("📍 Cleared all waypoints");
             });
-            
-            playPathButton.onClick.AddListener(() => {
-                cameraPath.Play();
+
+            playPathButton.onClick.AddListener(() =>
+            {
+                if (cameraPath != null)
+                {
+                    var method = cameraPath.GetType().GetMethod("Play");
+                    if (method != null) method.Invoke(cameraPath, null);
+                }
                 Debug.Log("▶ Playing camera path");
             });
-            
-            stopPathButton.onClick.AddListener(() => {
-                cameraPath.Stop();
+
+            stopPathButton.onClick.AddListener(() =>
+            {
+                if (cameraPath != null)
+                {
+                    var method = cameraPath.GetType().GetMethod("Stop");
+                    if (method != null) method.Invoke(cameraPath, null);
+                }
                 Debug.Log("⏹ Stopped camera path");
             });
-            
+
             // ============================================================
             // CONNECT ADVANCED FEATURES
             // ============================================================
-            
+
             // Recording Mode Toggle
-            recordingToggle.onValueChanged.AddListener((isOn) => {
+            recordingToggle.onValueChanged.AddListener((isOn) =>
+            {
                 cameraController.recordingMode = isOn;
                 cameraController.ToggleRecordingMode();
                 Debug.Log($"🎥 Recording Mode: {(isOn ? "ON" : "OFF")}");
             });
-            
+
             // Camera Shake Toggle
-            shakeToggle.onValueChanged.AddListener((isOn) => {
+            shakeToggle.onValueChanged.AddListener((isOn) =>
+            {
                 cameraController.enableIdleShake = isOn;
                 Debug.Log($"📳 Camera Shake: {(isOn ? "ON" : "OFF")}");
             });
-            
+
             // Auto-Framing Toggle
-            autoFramingToggle.onValueChanged.AddListener((isOn) => {
+            autoFramingToggle.onValueChanged.AddListener((isOn) =>
+            {
                 cameraController.autoFraming = isOn;
                 Debug.Log($"🎯 Auto-Framing: {(isOn ? "ON" : "OFF")}");
             });
-            
+
             // Multi-Agent Focus Toggle
-            multiAgentFocusToggle.onValueChanged.AddListener((isOn) => {
+            multiAgentFocusToggle.onValueChanged.AddListener((isOn) =>
+            {
                 cameraController.focusOnMultipleAgents = isOn;
                 Debug.Log($"👥 Multi-Agent Focus: {(isOn ? "ON" : "OFF")}");
             });
-            
+
             Debug.Log("✓ Advanced camera features connected!");
         }
         else
         {
             Debug.LogWarning("⚠ CameraController not found in scene! Camera buttons will not function.");
         }
-        
+
         // Set camera section height
         RectTransform cameraRect = cameraSection.GetComponent<RectTransform>();
         float cameraHeight = Mathf.Abs(cameraYPos) + 10;
         cameraRect.sizeDelta = new Vector2(0, cameraHeight);
         LayoutElement cameraLayout = cameraSection.GetComponent<LayoutElement>();
         if (cameraLayout != null) cameraLayout.preferredHeight = cameraHeight;
-        
+
         // Setup section toggle functionality
         SetupSectionToggle(motionSectionToggle, motionSection);
         SetupSectionToggle(visualsSectionToggle, visualsSection);
         SetupSectionToggle(colorSectionToggle, colorSection);
         SetupSectionToggle(environmentSectionToggle, environmentSection);
         SetupSectionToggle(cameraSectionToggle, cameraSection);
-        
+
         // Setup HSV sliders to update preview AND create new trail with new color
         if (hueSlider != null && saturationSlider != null && valueSlider != null && colorPreview != null)
         {
-            System.Action updateColorAndPreview = () => {
+            System.Action updateColorAndPreview = () =>
+            {
                 float h = hueSlider.value;
                 float s = saturationSlider.value;
                 float v = valueSlider.value;
                 Color newColor = Color.HSVToRGB(h, s, v);
-                
+
                 // Update preview
                 Image preview = colorPreview.GetComponent<Image>();
                 if (preview != null) preview.color = newColor;
-                
+
                 // Change line color on ACTIVE rotor - creates a NEW trail preserving the old one
                 if (activeRoller != null)
                 {
                     activeRoller.ChangeLineColor(newColor);
                 }
             };
-            
-            hueSlider.onValueChanged.AddListener((val) => {
+
+            hueSlider.onValueChanged.AddListener((val) =>
+            {
                 updateColorAndPreview();
                 Text text = hueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                 if (text != null) text.text = val.ToString("F2");
             });
-            
-            saturationSlider.onValueChanged.AddListener((val) => {
+
+            saturationSlider.onValueChanged.AddListener((val) =>
+            {
                 updateColorAndPreview();
                 Text text = saturationSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                 if (text != null) text.text = val.ToString("F2");
             });
-            
-            valueSlider.onValueChanged.AddListener((val) => {
+
+            valueSlider.onValueChanged.AddListener((val) =>
+            {
                 updateColorAndPreview();
                 Text text = valueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                 if (text != null) text.text = val.ToString("F2");
             });
         }
-        
+
         // Instructions - Modern style
         GameObject instructions = new GameObject("Instructions");
         instructions.transform.SetParent(uiParent, false);
@@ -1902,16 +1980,16 @@ public class SpirographUIManager : MonoBehaviour
         instructRect.anchorMax = new Vector2(1, 1);
         instructRect.pivot = new Vector2(0.5f, 1);
         instructRect.sizeDelta = new Vector2(0, 110);
-        
+
         // Add LayoutElement for instructions
         LayoutElement instructLayout = instructions.AddComponent<LayoutElement>();
         instructLayout.preferredHeight = 110;
         instructLayout.flexibleHeight = 0;
-        
+
         // Add subtle background for instructions
         Image instructBg = instructions.AddComponent<Image>();
         instructBg.color = new Color(0.05f, 0.05f, 0.15f, 0.4f);
-        
+
         GameObject instructTextObj = new GameObject("InstructionsText");
         instructTextObj.transform.SetParent(instructions.transform, false);
         RectTransform instructTextRect = instructTextObj.AddComponent<RectTransform>();
@@ -1919,7 +1997,7 @@ public class SpirographUIManager : MonoBehaviour
         instructTextRect.anchorMax = Vector2.one;
         instructTextRect.offsetMin = new Vector2(8, 8);
         instructTextRect.offsetMax = new Vector2(-8, -8);
-        
+
         Text instructText = instructTextObj.AddComponent<Text>();
         instructText.text = "💡 Click section headers (▼/▶) to expand/collapse\n\n⌨ WASD/ZQSD: Move • Shift: Sprint\n🖱 Right Click: Look • Scroll: Zoom\n\n🎨 Click color swatches for instant colors\n🌌 Choose skybox from Environment section";
         instructText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -1927,9 +2005,9 @@ public class SpirographUIManager : MonoBehaviour
         instructText.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
         instructText.alignment = TextAnchor.UpperLeft;
         instructText.lineSpacing = 1.15f;
-        
+
         // ContentSizeFitter will automatically adjust content height based on LayoutElements
-        
+
         // Add hint text for Hide UI button - Modern style
         GameObject hintText = new GameObject("HideUIHint");
         hintText.transform.SetParent(canvas.transform, false);
@@ -1946,12 +2024,12 @@ public class SpirographUIManager : MonoBehaviour
         hint.color = new Color(0.5f, 0.7f, 1f, 0.5f);
         hint.alignment = TextAnchor.MiddleRight;
         hint.fontStyle = FontStyle.Italic;
-        
+
         // Add glow effect
         Shadow hintGlow = hintText.AddComponent<Shadow>();
         hintGlow.effectColor = new Color(0.3f, 0.5f, 1f, 0.3f);
         hintGlow.effectDistance = new Vector2(0, 0);
-        
+
         // ============================================================
         // AGENT PANEL (Bottom-Right)
         // ============================================================
@@ -1959,26 +2037,26 @@ public class SpirographUIManager : MonoBehaviour
         agentPanelUIObj.transform.SetParent(canvas.transform, false);
         agentPanelUI = agentPanelUIObj.AddComponent<AgentPanelUI>();
         agentPanelUI.CreatePanel(canvas);
-        
-        #if UNITY_EDITOR
+
+#if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(this);
         UnityEditor.Selection.activeGameObject = canvasObj;
-        #endif
-        
+#endif
+
         Debug.Log("✓ Generated complete UI! Canvas selected in Hierarchy.");
         Debug.Log("✓ HIDE UI BUTTON: Top-right corner (always visible) - Press ENTER to toggle!");
         Debug.Log("✓ Agent Panel: Bottom-right (shown when multi-agent mode enabled)");
         Debug.Log("✓ You can now customize colors, sizes, and positions.");
         Debug.Log("✓ Don't forget to assign 4 materials to SpirographRoller for the material buttons!");
         Debug.Log("✓ UI automatically connects to SpirographRoller, RotateParent, and CameraController.");
-        
+
         // Log button assignments for verification
         Debug.Log($"✓ Camera Buttons Created: LookAt={lookAtButton != null}, SmoothFollow={smoothFollowButton != null}, AutoOrbit={autoOrbitButton != null}");
         if (lookAtButton != null) Debug.Log($"  → Look At Button: {lookAtButton.name}");
         if (smoothFollowButton != null) Debug.Log($"  → Smooth Follow Button: {smoothFollowButton.name}");
         if (autoOrbitButton != null) Debug.Log($"  → Auto Orbit Button: {autoOrbitButton.name}");
     }
-    
+
     Slider CreateModernSlider(Transform parent, string name, Vector2 position, float min, float max, float value, out Text valueLabel, string labelText, string valueText)
     {
         // Container
@@ -1990,7 +2068,7 @@ public class SpirographUIManager : MonoBehaviour
         sliderRect.pivot = new Vector2(0, 1);
         sliderRect.anchoredPosition = position;
         sliderRect.sizeDelta = new Vector2(290, 12); // Half height (was 24)
-        
+
         // Label (left aligned)
         GameObject labelObj = new GameObject("Label");
         labelObj.transform.SetParent(sliderObj.transform, false);
@@ -2007,7 +2085,7 @@ public class SpirographUIManager : MonoBehaviour
         label.fontStyle = FontStyle.Bold;
         label.color = UIConstants.BrightCyan;
         label.alignment = TextAnchor.MiddleLeft;
-        
+
         // Value Label (right aligned)
         GameObject valueLabelObj = new GameObject("ValueLabel");
         valueLabelObj.transform.SetParent(sliderObj.transform, false);
@@ -2023,7 +2101,7 @@ public class SpirographUIManager : MonoBehaviour
         valueLabel.fontSize = UIConstants.FontSizeSmall;
         valueLabel.color = UIConstants.MutedText;
         valueLabel.alignment = TextAnchor.MiddleRight;
-        
+
         // Background (glassmorphic)
         GameObject bg = new GameObject("Background");
         bg.transform.SetParent(sliderObj.transform, false);
@@ -2033,12 +2111,12 @@ public class SpirographUIManager : MonoBehaviour
         bgRect.sizeDelta = Vector2.zero;
         Image bgImage = bg.AddComponent<Image>();
         bgImage.color = UIConstants.ControlBackground;
-        
+
         // Add subtle outline using UIConstants
         Outline bgOutline = bg.AddComponent<Outline>();
         bgOutline.effectColor = UIConstants.CyanGlow;
         bgOutline.effectDistance = UIConstants.ShadowDistance;
-        
+
         // Fill Area
         GameObject fillArea = new GameObject("Fill Area");
         fillArea.transform.SetParent(sliderObj.transform, false);
@@ -2047,7 +2125,7 @@ public class SpirographUIManager : MonoBehaviour
         fillAreaRect.anchorMax = Vector2.one;
         fillAreaRect.offsetMin = new Vector2(2, 2); // Smaller padding for thinner slider
         fillAreaRect.offsetMax = new Vector2(-10, -2);
-        
+
         // Fill (gradient cyan-blue)
         GameObject fill = new GameObject("Fill");
         fill.transform.SetParent(fillArea.transform, false);
@@ -2057,12 +2135,12 @@ public class SpirographUIManager : MonoBehaviour
         fillRect.sizeDelta = Vector2.zero;
         Image fillImage = fill.AddComponent<Image>();
         fillImage.color = UIConstants.BlueGlow;
-        
+
         // Add glow to fill using UIConstants
         Shadow fillGlow = fill.AddComponent<Shadow>();
         fillGlow.effectColor = UIConstants.CyanGlow;
         fillGlow.effectDistance = UIConstants.GlowDistance;
-        
+
         // Handle Area
         GameObject handleArea = new GameObject("Handle Slide Area");
         handleArea.transform.SetParent(sliderObj.transform, false);
@@ -2071,7 +2149,7 @@ public class SpirographUIManager : MonoBehaviour
         handleAreaRect.anchorMax = Vector2.one;
         handleAreaRect.offsetMin = new Vector2(6, 0); // Adjusted for thinner slider
         handleAreaRect.offsetMax = new Vector2(-6, 0);
-        
+
         // Handle (modern circular design)
         GameObject handle = new GameObject("Handle");
         handle.transform.SetParent(handleArea.transform, false);
@@ -2079,12 +2157,12 @@ public class SpirographUIManager : MonoBehaviour
         handleRect.sizeDelta = new Vector2(10, 10); // Smaller handle (was 16x16)
         Image handleImage = handle.AddComponent<Image>();
         handleImage.color = UIConstants.BrightWhite;
-        
+
         // Add handle glow using UIConstants
         Shadow handleGlow = handle.AddComponent<Shadow>();
         handleGlow.effectColor = UIConstants.CyanGlow;
         handleGlow.effectDistance = UIConstants.GlowDistance;
-        
+
         // Slider
         Slider slider = sliderObj.AddComponent<Slider>();
         slider.fillRect = fillRect;
@@ -2093,10 +2171,10 @@ public class SpirographUIManager : MonoBehaviour
         slider.minValue = min;
         slider.maxValue = max;
         slider.value = value;
-        
+
         return slider;
     }
-    
+
     Button CreateSectionHeader(Transform parent, string name, Vector2 position, string headerText, bool startExpanded)
     {
         GameObject headerObj = new GameObject(name);
@@ -2107,34 +2185,34 @@ public class SpirographUIManager : MonoBehaviour
         headerRect.anchorMax = new Vector2(1, 1);
         headerRect.pivot = new Vector2(0.5f, 1);
         headerRect.sizeDelta = new Vector2(0, 35);
-        
+
         // Add Image FIRST (required for Button)
         Image headerImage = headerObj.AddComponent<Image>();
         headerImage.color = new Color(0.12f, 0.15f, 0.25f, 0.9f);
         headerImage.sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
         headerImage.type = Image.Type.Sliced;
-        
+
         // Add Button and set target graphic
         Button button = headerObj.AddComponent<Button>();
         button.targetGraphic = headerImage;
         button.transition = Selectable.Transition.ColorTint;
-        
+
         // Add LayoutElement so it works with VerticalLayoutGroup
         LayoutElement headerLayout = headerObj.AddComponent<LayoutElement>();
         headerLayout.preferredHeight = 35;
         headerLayout.flexibleHeight = 0;
-        
+
         Outline headerOutline = headerObj.AddComponent<Outline>();
         headerOutline.effectColor = new Color(0.4f, 0.6f, 1f, 0.4f);
         headerOutline.effectDistance = new Vector2(1, -1);
-        
+
         ColorBlock colors = button.colors;
         colors.normalColor = Color.white;
         colors.highlightedColor = new Color(1.1f, 1.1f, 1.2f, 1f);
         colors.pressedColor = new Color(0.9f, 0.9f, 1f, 1f);
         colors.colorMultiplier = 1f;
         button.colors = colors;
-        
+
         GameObject textObj = new GameObject("Text");
         textObj.transform.SetParent(headerObj.transform, false);
         RectTransform textRect = textObj.AddComponent<RectTransform>();
@@ -2148,14 +2226,14 @@ public class SpirographUIManager : MonoBehaviour
         text.fontStyle = FontStyle.Bold;
         text.color = new Color(0.8f, 0.95f, 1f, 1f);
         text.alignment = TextAnchor.MiddleLeft;
-        
+
         RectTransform textRectPadding = text.GetComponent<RectTransform>();
         textRectPadding.offsetMin = new Vector2(10, 0);
         textRectPadding.offsetMax = new Vector2(-10, 0);
-        
+
         return button;
     }
-    
+
     GameObject CreateSection(Transform parent, string name, Vector2 position)
     {
         GameObject section = new GameObject(name);
@@ -2166,35 +2244,36 @@ public class SpirographUIManager : MonoBehaviour
         sectionRect.anchorMax = new Vector2(1, 1);
         sectionRect.pivot = new Vector2(0.5f, 1);
         sectionRect.sizeDelta = new Vector2(0, 100); // Temp, will be adjusted
-        
+
         Image sectionBg = section.AddComponent<Image>();
         sectionBg.color = new Color(0.03f, 0.03f, 0.1f, 0.5f);
-        
+
         // Add LayoutElement so it works with VerticalLayoutGroup
         LayoutElement sectionLayout = section.AddComponent<LayoutElement>();
         sectionLayout.preferredHeight = 100; // Will be updated per section
         sectionLayout.flexibleHeight = 0;
-        
+
         return section;
     }
-    
+
     void SetupSectionToggle(Button toggleButton, GameObject section)
     {
         if (toggleButton == null || section == null) return;
-        
+
         // Get references (height will be read dynamically later)
         RectTransform sectionRect = section.GetComponent<RectTransform>();
         LayoutElement sectionLayout = section.GetComponent<LayoutElement>();
-        
+
         // Remove old listeners to prevent duplicates
         toggleButton.onClick.RemoveAllListeners();
-        
-        toggleButton.onClick.AddListener(() => {
+
+        toggleButton.onClick.AddListener(() =>
+        {
             bool willBeActive = !section.activeSelf;
-            
+
             // Get the actual height from the LayoutElement (this is the correct height)
             float fullHeight = sectionLayout != null ? sectionLayout.preferredHeight : sectionRect.sizeDelta.y;
-            
+
             // If collapsing, we just set to 0
             // If expanding, we restore the full height
             if (sectionLayout != null)
@@ -2206,15 +2285,15 @@ public class SpirographUIManager : MonoBehaviour
                     fullHeight = sectionRect.sizeDelta.y;
                     if (fullHeight <= 0) fullHeight = 100; // Fallback
                 }
-                
+
                 sectionLayout.preferredHeight = willBeActive ? fullHeight : 0;
                 // Mark layout as dirty to force recalculation
                 LayoutRebuilder.MarkLayoutForRebuild(sectionLayout.GetComponent<RectTransform>());
             }
-            
+
             // Then change active state
             section.SetActive(willBeActive);
-            
+
             // Update arrow icon
             Text buttonText = toggleButton.GetComponentInChildren<Text>();
             if (buttonText != null)
@@ -2226,20 +2305,20 @@ public class SpirographUIManager : MonoBehaviour
                     buttonText.text = arrow + " " + string.Join(" ", parts, 1, parts.Length - 1);
                 }
             }
-            
+
             // Force complete layout rebuild (multiple passes for reliability)
             RectTransform contentRect = section.transform.parent.GetComponent<RectTransform>();
             LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
             Canvas.ForceUpdateCanvases();
-            
+
             // Second pass to ensure everything updates
             UnityEngine.Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
-            
+
             Debug.Log($"Section {section.name} toggled: {(willBeActive ? "EXPANDED" : "COLLAPSED")} - Height: {fullHeight}");
         });
     }
-    
+
     void AddColorPresetLabel(Transform parent, Vector2 position, string labelText)
     {
         GameObject labelObj = new GameObject("PresetLabel");
@@ -2258,7 +2337,7 @@ public class SpirographUIManager : MonoBehaviour
         label.color = new Color(0.6f, 0.75f, 0.9f, 0.85f);
         label.alignment = TextAnchor.MiddleLeft;
     }
-    
+
     Button CreateColorPresetButton(Transform parent, string name, Vector2 position, Color color)
     {
         GameObject buttonObj = new GameObject(name);
@@ -2269,72 +2348,73 @@ public class SpirographUIManager : MonoBehaviour
         buttonRect.pivot = new Vector2(0, 1);
         buttonRect.anchoredPosition = position;
         buttonRect.sizeDelta = new Vector2(32, 28);
-        
+
         Image buttonImage = buttonObj.AddComponent<Image>();
         buttonImage.color = color;
-        
+
         Outline buttonOutline = buttonObj.AddComponent<Outline>();
         buttonOutline.effectColor = new Color(1f, 1f, 1f, 0.5f);
         buttonOutline.effectDistance = new Vector2(1, -1);
-        
+
         Button button = buttonObj.AddComponent<Button>();
         button.targetGraphic = buttonImage;
-        
+
         ColorBlock colors = button.colors;
         colors.normalColor = Color.white;
         colors.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f);
         colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
         colors.colorMultiplier = 1f;
         button.colors = colors;
-        
+
         // Connect to ACTIVE SpirographRoller
-        button.onClick.AddListener(() => {
+        button.onClick.AddListener(() =>
+        {
             Debug.Log($"🎨 Color preset button clicked! Color: {color}");
-            
+
             if (activeRoller == null)
             {
                 Debug.LogError("❌ Active SpirographRoller not found! Cannot change color.");
                 return;
             }
-            
+
             Debug.Log($"✓ Found active SpirographRoller, changing color...");
-            
+
             try
             {
                 // Update HSV sliders first
                 float h, s, v;
                 Color.RGBToHSV(color, out h, out s, out v);
-                
-                if (hueSlider != null) 
+
+                if (hueSlider != null)
                 {
                     hueSlider.SetValueWithoutNotify(h);
                     Text text = hueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                     if (text != null) text.text = h.ToString("F2");
                 }
-                if (saturationSlider != null) 
+                if (saturationSlider != null)
                 {
                     saturationSlider.SetValueWithoutNotify(s);
                     Text text = saturationSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                     if (text != null) text.text = s.ToString("F2");
                 }
-                if (valueSlider != null) 
+                if (valueSlider != null)
                 {
                     valueSlider.SetValueWithoutNotify(v);
                     Text text = valueSlider.transform.Find("ValueLabel")?.GetComponent<Text>();
                     if (text != null) text.text = v.ToString("F2");
                 }
-                
+
                 // Change line color on ACTIVE rotor - this creates a NEW trail with the new color
                 // while preserving the old trail in its current color
                 activeRoller.ChangeLineColor(color);
-                
+
                 // Update preview
                 if (colorPreview != null)
                 {
                     Image preview = colorPreview.GetComponent<Image>();
                     if (preview != null) preview.color = color;
                 }
-                
+
                 Debug.Log($"✓ Color changed successfully to {color}");
             }
             catch (System.Exception e)
@@ -2342,10 +2422,10 @@ public class SpirographUIManager : MonoBehaviour
                 Debug.LogError($"❌ Error changing color: {e.Message}\n{e.StackTrace}");
             }
         });
-        
+
         return button;
     }
-    
+
     Dropdown CreateModernDropdown(Transform parent, string name, Vector2 position)
     {
         // Main Dropdown GameObject
@@ -2357,20 +2437,20 @@ public class SpirographUIManager : MonoBehaviour
         dropdownRect.pivot = new Vector2(0, 1);
         dropdownRect.anchoredPosition = position;
         dropdownRect.sizeDelta = new Vector2(290, 38);
-        
+
         // Background
         Image dropdownBg = dropdownObj.AddComponent<Image>();
         dropdownBg.color = new Color(0.08f, 0.12f, 0.22f, 0.7f);
         dropdownBg.raycastTarget = true;
-        
+
         Outline dropdownOutline = dropdownObj.AddComponent<Outline>();
         dropdownOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
         dropdownOutline.effectDistance = new Vector2(1, -1);
-        
+
         // Dropdown Component
         Dropdown dropdown = dropdownObj.AddComponent<Dropdown>();
         dropdown.targetGraphic = dropdownBg;
-        
+
         // Label (shows current selection)
         GameObject labelObj = new GameObject("Label");
         labelObj.transform.SetParent(dropdownObj.transform, false);
@@ -2387,7 +2467,7 @@ public class SpirographUIManager : MonoBehaviour
         labelText.color = new Color(0.85f, 0.95f, 1f, 0.95f);
         labelText.alignment = TextAnchor.MiddleLeft;
         dropdown.captionText = labelText;
-        
+
         // Arrow
         GameObject arrowObj = new GameObject("Arrow");
         arrowObj.transform.SetParent(dropdownObj.transform, false);
@@ -2402,7 +2482,7 @@ public class SpirographUIManager : MonoBehaviour
         arrowText.fontSize = 12;
         arrowText.color = new Color(0.6f, 0.8f, 1f, 0.8f);
         arrowText.alignment = TextAnchor.MiddleCenter;
-        
+
         // Template (the dropdown list that appears) - POSITIONED TO THE RIGHT
         GameObject templateObj = new GameObject("Template");
         templateObj.transform.SetParent(dropdownObj.transform, false);
@@ -2412,31 +2492,31 @@ public class SpirographUIManager : MonoBehaviour
         templateRect.pivot = new Vector2(0, 0.5f); // Pivot on left middle so it extends right
         templateRect.anchoredPosition = new Vector2(10, 0); // 10 pixels to the right
         templateRect.sizeDelta = new Vector2(250, 200); // Fixed width, taller for better visibility
-        
+
         Image templateBg = templateObj.AddComponent<Image>();
         templateBg.color = new Color(0.05f, 0.08f, 0.15f, 0.95f);
         templateBg.raycastTarget = true;
-        
+
         // Add Canvas component to template to break out of parent's clipping
         Canvas templateCanvas = templateObj.AddComponent<Canvas>();
         templateCanvas.overrideSorting = true;
         templateCanvas.sortingOrder = 1000; // Render on top of everything
-        
+
         // Add CanvasGroup to ensure it renders properly
         CanvasGroup templateGroup = templateObj.AddComponent<CanvasGroup>();
         templateGroup.blocksRaycasts = true;
-        
+
         templateObj.AddComponent<GraphicRaycaster>();
-        
+
         Outline templateOutline = templateObj.AddComponent<Outline>();
         templateOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.5f);
         templateOutline.effectDistance = new Vector2(2, -2);
-        
+
         ScrollRect scrollRect = templateObj.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.vertical = true;
         scrollRect.scrollSensitivity = 10;
-        
+
         // Viewport
         GameObject viewportObj = new GameObject("Viewport");
         viewportObj.transform.SetParent(templateObj.transform, false);
@@ -2444,14 +2524,14 @@ public class SpirographUIManager : MonoBehaviour
         viewportRect.anchorMin = Vector2.zero;
         viewportRect.anchorMax = Vector2.one;
         viewportRect.sizeDelta = Vector2.zero;
-        
+
         Image viewportMask = viewportObj.AddComponent<Image>();
         viewportMask.color = Color.white;
         Mask mask = viewportObj.AddComponent<Mask>();
         mask.showMaskGraphic = false;
-        
+
         scrollRect.viewport = viewportRect;
-        
+
         // Content
         GameObject contentObj = new GameObject("Content");
         contentObj.transform.SetParent(viewportObj.transform, false);
@@ -2461,9 +2541,9 @@ public class SpirographUIManager : MonoBehaviour
         contentRect.pivot = new Vector2(0.5f, 1);
         contentRect.anchoredPosition = Vector2.zero;
         contentRect.sizeDelta = new Vector2(0, 150);
-        
+
         scrollRect.content = contentRect;
-        
+
         // Item (template for each option)
         GameObject itemObj = new GameObject("Item");
         itemObj.transform.SetParent(contentObj.transform, false);
@@ -2473,23 +2553,23 @@ public class SpirographUIManager : MonoBehaviour
         itemRect.pivot = new Vector2(0.5f, 1);
         itemRect.anchoredPosition = Vector2.zero;
         itemRect.sizeDelta = new Vector2(0, 30);
-        
+
         Toggle itemToggle = itemObj.AddComponent<Toggle>();
         itemToggle.isOn = false;
         itemToggle.interactable = true;
-        
+
         Image itemBg = itemObj.AddComponent<Image>();
         itemBg.color = new Color(0.1f, 0.15f, 0.25f, 1f);
         itemBg.raycastTarget = true;
         itemToggle.targetGraphic = itemBg;
-        
+
         ColorBlock toggleColors = itemToggle.colors;
         toggleColors.normalColor = new Color(1f, 1f, 1f, 1f);
         toggleColors.highlightedColor = new Color(0.8f, 0.95f, 1f, 1f);
         toggleColors.pressedColor = new Color(0.6f, 0.8f, 1f, 1f);
         toggleColors.selectedColor = new Color(0.4f, 0.7f, 1f, 1f);
         itemToggle.colors = toggleColors;
-        
+
         // Item Label
         GameObject itemLabelObj = new GameObject("Item Label");
         itemLabelObj.transform.SetParent(itemObj.transform, false);
@@ -2505,10 +2585,10 @@ public class SpirographUIManager : MonoBehaviour
         itemLabelText.color = new Color(0.85f, 0.95f, 1f, 0.95f);
         itemLabelText.alignment = TextAnchor.MiddleLeft;
         dropdown.itemText = itemLabelText;
-        
+
         dropdown.template = templateRect;
         templateObj.SetActive(false);
-        
+
         // Populate with skybox names and connect to SkyboxManager
         SkyboxManager skyboxManager = FindFirstObjectByType<SkyboxManager>();
         if (skyboxManager == null)
@@ -2517,25 +2597,26 @@ public class SpirographUIManager : MonoBehaviour
             GameObject managerObj = new GameObject("SkyboxManager");
             skyboxManager = managerObj.AddComponent<SkyboxManager>();
         }
-        
+
         dropdown.ClearOptions();
         dropdown.AddOptions(new List<string>(skyboxManager.GetAllSkyboxNames()));
-        
+
         // Set current value
         int currentIndex = skyboxManager.GetCurrentSkyboxIndex();
         if (currentIndex >= 0)
         {
             dropdown.value = currentIndex;
         }
-        
+
         // Connect listener
-        dropdown.onValueChanged.AddListener((index) => {
+        dropdown.onValueChanged.AddListener((index) =>
+        {
             skyboxManager.SetSkybox(index);
         });
-        
+
         return dropdown;
     }
-    
+
     Button CreateModernButton(Transform parent, string name, Vector2 position, Vector2 size, string buttonText)
     {
         GameObject buttonObj = new GameObject(name);
@@ -2546,24 +2627,24 @@ public class SpirographUIManager : MonoBehaviour
         buttonRect.pivot = new Vector2(0, 1);
         buttonRect.anchoredPosition = position;
         buttonRect.sizeDelta = size;
-        
+
         // Glassmorphic background using UIConstants
         Image buttonImage = buttonObj.AddComponent<Image>();
         buttonImage.color = UIConstants.ButtonBackground;
-        
+
         // Add subtle outline using UIConstants
         Outline buttonOutline = buttonObj.AddComponent<Outline>();
         buttonOutline.effectColor = UIConstants.CyanGlow;
         buttonOutline.effectDistance = UIConstants.ShadowDistance;
-        
+
         // Add hover glow effect using UIConstants
         Shadow buttonGlow = buttonObj.AddComponent<Shadow>();
         buttonGlow.effectColor = UIConstants.BlueGlow;
         buttonGlow.effectDistance = UIConstants.GlowDistance;
-        
+
         Button button = buttonObj.AddComponent<Button>();
         button.targetGraphic = buttonImage;
-        
+
         // Setup hover colors with consistent styling
         ColorBlock colors = button.colors;
         colors.normalColor = Color.white;
@@ -2574,7 +2655,7 @@ public class SpirographUIManager : MonoBehaviour
         colors.colorMultiplier = 1.2f;
         colors.fadeDuration = UIConstants.TransitionFast;
         button.colors = colors;
-        
+
         // Text
         GameObject textObj = new GameObject("Text");
         textObj.transform.SetParent(buttonObj.transform, false);
@@ -2589,15 +2670,15 @@ public class SpirographUIManager : MonoBehaviour
         text.fontStyle = FontStyle.Bold;
         text.color = UIConstants.SoftCyanWhite;
         text.alignment = TextAnchor.MiddleCenter;
-        
+
         // Add text shadow for depth using UIConstants
         Shadow textShadow = textObj.AddComponent<Shadow>();
         textShadow.effectColor = new Color(0, 0, 0, 0.5f);
         textShadow.effectDistance = UIConstants.ShadowDistance;
-        
+
         return button;
     }
-    
+
     /// <summary>
     /// Create dropdown populated with all GeometricPatternGenerator shape types
     /// </summary>
@@ -2611,18 +2692,18 @@ public class SpirographUIManager : MonoBehaviour
         dropdownRect.pivot = new Vector2(0, 1);
         dropdownRect.anchoredPosition = position;
         dropdownRect.sizeDelta = new Vector2(290, 38);
-        
+
         Image dropdownBg = dropdownObj.AddComponent<Image>();
         dropdownBg.color = new Color(0.08f, 0.12f, 0.22f, 0.7f);
         dropdownBg.raycastTarget = true;
-        
+
         Outline dropdownOutline = dropdownObj.AddComponent<Outline>();
         dropdownOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
         dropdownOutline.effectDistance = new Vector2(1, -1);
-        
+
         Dropdown dropdown = dropdownObj.AddComponent<Dropdown>();
         dropdown.targetGraphic = dropdownBg;
-        
+
         // Label
         GameObject labelObj = new GameObject("Label");
         labelObj.transform.SetParent(dropdownObj.transform, false);
@@ -2639,7 +2720,7 @@ public class SpirographUIManager : MonoBehaviour
         labelText.color = new Color(0.85f, 0.95f, 1f, 0.95f);
         labelText.alignment = TextAnchor.MiddleLeft;
         dropdown.captionText = labelText;
-        
+
         // Arrow
         GameObject arrowObj = new GameObject("Arrow");
         arrowObj.transform.SetParent(dropdownObj.transform, false);
@@ -2654,7 +2735,7 @@ public class SpirographUIManager : MonoBehaviour
         arrowText.fontSize = 12;
         arrowText.color = new Color(0.6f, 0.8f, 1f, 0.8f);
         arrowText.alignment = TextAnchor.MiddleCenter;
-        
+
         // Template - POSITIONED TO THE RIGHT
         GameObject templateObj = new GameObject("Template");
         templateObj.transform.SetParent(dropdownObj.transform, false);
@@ -2664,31 +2745,31 @@ public class SpirographUIManager : MonoBehaviour
         templateRect.pivot = new Vector2(0, 0.5f); // Pivot on left middle so it extends right
         templateRect.anchoredPosition = new Vector2(10, 0); // 10 pixels to the right
         templateRect.sizeDelta = new Vector2(250, 300); // Fixed width, extra tall for many options
-        
+
         Image templateBg = templateObj.AddComponent<Image>();
         templateBg.color = new Color(0.05f, 0.08f, 0.15f, 0.95f);
         templateBg.raycastTarget = true;
-        
+
         // Add Canvas component to break out of parent's clipping
         Canvas templateCanvas = templateObj.AddComponent<Canvas>();
         templateCanvas.overrideSorting = true;
         templateCanvas.sortingOrder = 1000; // Render on top of everything
-        
+
         // Add CanvasGroup to ensure it renders properly
         CanvasGroup templateGroup = templateObj.AddComponent<CanvasGroup>();
         templateGroup.blocksRaycasts = true;
-        
+
         templateObj.AddComponent<GraphicRaycaster>();
-        
+
         Outline templateOutline = templateObj.AddComponent<Outline>();
         templateOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.5f);
         templateOutline.effectDistance = new Vector2(2, -2);
-        
+
         ScrollRect scrollRect = templateObj.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.vertical = true;
         scrollRect.scrollSensitivity = 10;
-        
+
         // Viewport
         GameObject viewportObj = new GameObject("Viewport");
         viewportObj.transform.SetParent(templateObj.transform, false);
@@ -2696,14 +2777,14 @@ public class SpirographUIManager : MonoBehaviour
         viewportRect.anchorMin = Vector2.zero;
         viewportRect.anchorMax = Vector2.one;
         viewportRect.sizeDelta = Vector2.zero;
-        
+
         Image viewportMask = viewportObj.AddComponent<Image>();
         viewportMask.color = Color.white;
         Mask mask = viewportObj.AddComponent<Mask>();
         mask.showMaskGraphic = false;
-        
+
         scrollRect.viewport = viewportRect;
-        
+
         // Content
         GameObject contentObj = new GameObject("Content");
         contentObj.transform.SetParent(viewportObj.transform, false);
@@ -2713,9 +2794,9 @@ public class SpirographUIManager : MonoBehaviour
         contentRect.pivot = new Vector2(0.5f, 1);
         contentRect.anchoredPosition = Vector2.zero;
         contentRect.sizeDelta = new Vector2(0, 200);
-        
+
         scrollRect.content = contentRect;
-        
+
         // Item
         GameObject itemObj = new GameObject("Item");
         itemObj.transform.SetParent(contentObj.transform, false);
@@ -2725,23 +2806,23 @@ public class SpirographUIManager : MonoBehaviour
         itemRect.pivot = new Vector2(0.5f, 1);
         itemRect.anchoredPosition = Vector2.zero;
         itemRect.sizeDelta = new Vector2(0, 30);
-        
+
         Toggle itemToggle = itemObj.AddComponent<Toggle>();
         itemToggle.isOn = false;
         itemToggle.interactable = true;
-        
+
         Image itemBg = itemObj.AddComponent<Image>();
         itemBg.color = new Color(0.1f, 0.15f, 0.25f, 1f);
         itemBg.raycastTarget = true;
         itemToggle.targetGraphic = itemBg;
-        
+
         ColorBlock toggleColors = itemToggle.colors;
         toggleColors.normalColor = new Color(1f, 1f, 1f, 1f);
         toggleColors.highlightedColor = new Color(0.8f, 0.95f, 1f, 1f);
         toggleColors.pressedColor = new Color(0.6f, 0.8f, 1f, 1f);
         toggleColors.selectedColor = new Color(0.4f, 0.7f, 1f, 1f);
         itemToggle.colors = toggleColors;
-        
+
         // Item Label
         GameObject itemLabelObj = new GameObject("Item Label");
         itemLabelObj.transform.SetParent(itemObj.transform, false);
@@ -2757,10 +2838,10 @@ public class SpirographUIManager : MonoBehaviour
         itemLabelText.color = new Color(0.85f, 0.95f, 1f, 0.95f);
         itemLabelText.alignment = TextAnchor.MiddleLeft;
         dropdown.itemText = itemLabelText;
-        
+
         dropdown.template = templateRect;
         templateObj.SetActive(false);
-        
+
         // Populate with ALL shape types from GeometricPatternGenerator
         dropdown.ClearOptions();
         List<string> shapeNames = new List<string>();
@@ -2769,10 +2850,10 @@ public class SpirographUIManager : MonoBehaviour
             shapeNames.Add(shape.ToString());
         }
         dropdown.AddOptions(shapeNames);
-        
+
         return dropdown;
     }
-    
+
     /// <summary>
     /// Connect pattern generator buttons to PatternSpawner
     /// </summary>
@@ -2786,36 +2867,38 @@ public class SpirographUIManager : MonoBehaviour
             spawner = spawnerObj.AddComponent<PatternSpawner>();
             Debug.Log("✓ Created PatternSpawner in scene");
         }
-        
+
         // Connect Generate Button
         if (generatePatternButton != null && patternDropdown != null)
         {
             generatePatternButton.onClick.RemoveAllListeners();
-            generatePatternButton.onClick.AddListener(() => {
+            generatePatternButton.onClick.AddListener(() =>
+            {
                 // Get selected shape from dropdown
                 string selectedShape = patternDropdown.options[patternDropdown.value].text;
                 GeometricPatternGenerator.ShapeType shapeType = (GeometricPatternGenerator.ShapeType)System.Enum.Parse(
                     typeof(GeometricPatternGenerator.ShapeType), selectedShape);
-                
+
                 // Spawn pattern
                 GameObject newPattern = spawner.SpawnPattern(shapeType);
                 Debug.Log($"✓ Generated {selectedShape} pattern at runtime!");
             });
         }
-        
+
         // Connect Clear Button
         if (clearPatternsButton != null)
         {
             clearPatternsButton.onClick.RemoveAllListeners();
-            clearPatternsButton.onClick.AddListener(() => {
+            clearPatternsButton.onClick.AddListener(() =>
+            {
                 spawner.ClearAllPatterns();
                 Debug.Log("✓ Cleared all generated patterns");
             });
         }
-        
+
         Debug.Log("✓ Pattern generator UI connected!");
     }
-    
+
     /// <summary>
     /// Create a modern toggle (checkbox) control
     /// </summary>
@@ -2830,7 +2913,7 @@ public class SpirographUIManager : MonoBehaviour
         toggleRect.pivot = new Vector2(0, 1);
         toggleRect.anchoredPosition = position;
         toggleRect.sizeDelta = new Vector2(290, 35);
-        
+
         // Background
         GameObject bgObj = new GameObject("Background");
         bgObj.transform.SetParent(toggleObj.transform, false);
@@ -2840,14 +2923,14 @@ public class SpirographUIManager : MonoBehaviour
         bgRect.pivot = new Vector2(0, 0.5f);
         bgRect.anchoredPosition = Vector2.zero;
         bgRect.sizeDelta = new Vector2(30, 0);
-        
+
         Image bgImage = bgObj.AddComponent<Image>();
         bgImage.color = new Color(0.1f, 0.15f, 0.25f, 0.6f);
-        
+
         Outline bgOutline = bgObj.AddComponent<Outline>();
         bgOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
         bgOutline.effectDistance = new Vector2(1, -1);
-        
+
         // Checkmark
         GameObject checkmarkObj = new GameObject("Checkmark");
         checkmarkObj.transform.SetParent(bgObj.transform, false);
@@ -2855,7 +2938,7 @@ public class SpirographUIManager : MonoBehaviour
         checkmarkRect.anchorMin = Vector2.zero;
         checkmarkRect.anchorMax = Vector2.one;
         checkmarkRect.sizeDelta = Vector2.zero;
-        
+
         Text checkmark = checkmarkObj.AddComponent<Text>();
         checkmark.text = "✓";
         checkmark.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -2863,7 +2946,7 @@ public class SpirographUIManager : MonoBehaviour
         checkmark.fontStyle = FontStyle.Bold;
         checkmark.color = new Color(0.3f, 0.8f, 1f, 1f);
         checkmark.alignment = TextAnchor.MiddleCenter;
-        
+
         // Label
         GameObject labelObj = new GameObject("Label");
         labelObj.transform.SetParent(toggleObj.transform, false);
@@ -2873,7 +2956,7 @@ public class SpirographUIManager : MonoBehaviour
         labelRect.pivot = new Vector2(0, 0.5f);
         labelRect.anchoredPosition = new Vector2(38, 0);
         labelRect.sizeDelta = new Vector2(-38, 0);
-        
+
         Text label = labelObj.AddComponent<Text>();
         label.text = labelText;
         label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -2881,23 +2964,23 @@ public class SpirographUIManager : MonoBehaviour
         label.fontStyle = FontStyle.Bold;
         label.color = new Color(0.7f, 0.85f, 1f, 0.9f);
         label.alignment = TextAnchor.MiddleLeft;
-        
+
         // Toggle component
         Toggle toggle = toggleObj.AddComponent<Toggle>();
         toggle.targetGraphic = bgImage;
         toggle.graphic = checkmark;
         toggle.isOn = false;
-        
+
         ColorBlock colors = toggle.colors;
         colors.normalColor = Color.white;
         colors.highlightedColor = new Color(1.1f, 1.1f, 1.2f, 1f);
         colors.pressedColor = new Color(0.9f, 0.9f, 1f, 1f);
         colors.selectedColor = new Color(1.1f, 1.1f, 1.2f, 1f);
         toggle.colors = colors;
-        
+
         return toggle;
     }
-    
+
     /// <summary>
     /// Create a compact dropdown (smaller than the default modern dropdown)
     /// </summary>
@@ -2911,18 +2994,18 @@ public class SpirographUIManager : MonoBehaviour
         dropdownRect.pivot = new Vector2(0, 1);
         dropdownRect.anchoredPosition = position;
         dropdownRect.sizeDelta = new Vector2(290, 32);
-        
+
         Image dropdownBg = dropdownObj.AddComponent<Image>();
         dropdownBg.color = new Color(0.08f, 0.12f, 0.22f, 0.7f);
         dropdownBg.raycastTarget = true;
-        
+
         Outline dropdownOutline = dropdownObj.AddComponent<Outline>();
         dropdownOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
         dropdownOutline.effectDistance = new Vector2(1, -1);
-        
+
         Dropdown dropdown = dropdownObj.AddComponent<Dropdown>();
         dropdown.targetGraphic = dropdownBg;
-        
+
         // Label
         GameObject labelObj = new GameObject("Label");
         labelObj.transform.SetParent(dropdownObj.transform, false);
@@ -2939,7 +3022,7 @@ public class SpirographUIManager : MonoBehaviour
         labelText.color = new Color(0.85f, 0.95f, 1f, 0.95f);
         labelText.alignment = TextAnchor.MiddleLeft;
         dropdown.captionText = labelText;
-        
+
         // Arrow
         GameObject arrowObj = new GameObject("Arrow");
         arrowObj.transform.SetParent(dropdownObj.transform, false);
@@ -2954,7 +3037,7 @@ public class SpirographUIManager : MonoBehaviour
         arrowText.fontSize = 10;
         arrowText.color = new Color(0.6f, 0.8f, 1f, 0.8f);
         arrowText.alignment = TextAnchor.MiddleCenter;
-        
+
         // Template (same as modern dropdown but positioned to the right)
         GameObject templateObj = new GameObject("Template");
         templateObj.transform.SetParent(dropdownObj.transform, false);
@@ -2964,29 +3047,29 @@ public class SpirographUIManager : MonoBehaviour
         templateRect.pivot = new Vector2(0, 0.5f);
         templateRect.anchoredPosition = new Vector2(10, 0);
         templateRect.sizeDelta = new Vector2(200, 150);
-        
+
         Image templateBg = templateObj.AddComponent<Image>();
         templateBg.color = new Color(0.05f, 0.08f, 0.15f, 0.95f);
         templateBg.raycastTarget = true;
-        
+
         Canvas templateCanvas = templateObj.AddComponent<Canvas>();
         templateCanvas.overrideSorting = true;
         templateCanvas.sortingOrder = 1000;
-        
+
         CanvasGroup templateGroup = templateObj.AddComponent<CanvasGroup>();
         templateGroup.blocksRaycasts = true;
-        
+
         templateObj.AddComponent<GraphicRaycaster>();
-        
+
         Outline templateOutline = templateObj.AddComponent<Outline>();
         templateOutline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.5f);
         templateOutline.effectDistance = new Vector2(2, -2);
-        
+
         ScrollRect scrollRect = templateObj.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.vertical = true;
         scrollRect.scrollSensitivity = 10;
-        
+
         // Viewport
         GameObject viewportObj = new GameObject("Viewport");
         viewportObj.transform.SetParent(templateObj.transform, false);
@@ -2994,14 +3077,14 @@ public class SpirographUIManager : MonoBehaviour
         viewportRect.anchorMin = Vector2.zero;
         viewportRect.anchorMax = Vector2.one;
         viewportRect.sizeDelta = Vector2.zero;
-        
+
         Image viewportMask = viewportObj.AddComponent<Image>();
         viewportMask.color = Color.white;
         Mask mask = viewportObj.AddComponent<Mask>();
         mask.showMaskGraphic = false;
-        
+
         scrollRect.viewport = viewportRect;
-        
+
         // Content
         GameObject contentObj = new GameObject("Content");
         contentObj.transform.SetParent(viewportObj.transform, false);
@@ -3011,9 +3094,9 @@ public class SpirographUIManager : MonoBehaviour
         contentRect.pivot = new Vector2(0.5f, 1);
         contentRect.anchoredPosition = Vector2.zero;
         contentRect.sizeDelta = new Vector2(0, 100);
-        
+
         scrollRect.content = contentRect;
-        
+
         // Item
         GameObject itemObj = new GameObject("Item");
         itemObj.transform.SetParent(contentObj.transform, false);
@@ -3023,23 +3106,23 @@ public class SpirographUIManager : MonoBehaviour
         itemRect.pivot = new Vector2(0.5f, 1);
         itemRect.anchoredPosition = Vector2.zero;
         itemRect.sizeDelta = new Vector2(0, 25);
-        
+
         Toggle itemToggle = itemObj.AddComponent<Toggle>();
         itemToggle.isOn = false;
         itemToggle.interactable = true;
-        
+
         Image itemBg = itemObj.AddComponent<Image>();
         itemBg.color = new Color(0.1f, 0.15f, 0.25f, 1f);
         itemBg.raycastTarget = true;
         itemToggle.targetGraphic = itemBg;
-        
+
         ColorBlock toggleColors = itemToggle.colors;
         toggleColors.normalColor = new Color(1f, 1f, 1f, 1f);
         toggleColors.highlightedColor = new Color(0.8f, 0.95f, 1f, 1f);
         toggleColors.pressedColor = new Color(0.6f, 0.8f, 1f, 1f);
         toggleColors.selectedColor = new Color(0.4f, 0.7f, 1f, 1f);
         itemToggle.colors = toggleColors;
-        
+
         // Item Label
         GameObject itemLabelObj = new GameObject("Item Label");
         itemLabelObj.transform.SetParent(itemObj.transform, false);
@@ -3055,17 +3138,17 @@ public class SpirographUIManager : MonoBehaviour
         itemLabelText.color = new Color(0.85f, 0.95f, 1f, 0.95f);
         itemLabelText.alignment = TextAnchor.MiddleLeft;
         dropdown.itemText = itemLabelText;
-        
+
         dropdown.template = templateRect;
         templateObj.SetActive(false);
-        
+
         // Populate options
         dropdown.ClearOptions();
         dropdown.AddOptions(new List<string>(options));
-        
+
         return dropdown;
     }
-    
+
     /// <summary>
     /// Connect multi-agent UI to MultiAgentManager
     /// </summary>
@@ -3079,7 +3162,7 @@ public class SpirographUIManager : MonoBehaviour
             multiAgentManager = managerObj.AddComponent<MultiAgentManager>();
             Debug.Log("✓ Created MultiAgentManager");
         }
-        
+
         // Find or create SharedPathState
         sharedPathState = FindFirstObjectByType<SharedPathState>();
         if (sharedPathState == null)
@@ -3088,36 +3171,38 @@ public class SpirographUIManager : MonoBehaviour
             sharedPathState = stateObj.AddComponent<SharedPathState>();
             Debug.Log("✓ Created SharedPathState");
         }
-        
+
         // Link manager to shared state
         multiAgentManager.sharedState = sharedPathState;
-        
+
         // Find or create AgentPanelUI
         if (agentPanelUI == null)
         {
             agentPanelUI = FindFirstObjectByType<AgentPanelUI>();
         }
-        
+
         // Link agent panel to manager
         if (agentPanelUI != null)
         {
             agentPanelUI.agentManager = multiAgentManager;
         }
-        
+
         // Connect Multi-Agent Toggle
         if (multiAgentToggle != null)
         {
             multiAgentToggle.onValueChanged.RemoveAllListeners();
-            multiAgentToggle.onValueChanged.AddListener((isOn) => {
+            multiAgentToggle.onValueChanged.AddListener((isOn) =>
+            {
                 OnMultiAgentModeToggled(isOn);
             });
         }
-        
+
         // Connect Agent Count Slider
         if (agentCountSlider != null)
         {
             agentCountSlider.onValueChanged.RemoveAllListeners();
-            agentCountSlider.onValueChanged.AddListener((value) => {
+            agentCountSlider.onValueChanged.AddListener((value) =>
+            {
                 int count = (int)value;
                 if (agentCountText != null)
                 {
@@ -3129,12 +3214,13 @@ public class SpirographUIManager : MonoBehaviour
                 }
             });
         }
-        
+
         // Connect Color Mode Dropdown
         if (agentColorModeDropdown != null)
         {
             agentColorModeDropdown.onValueChanged.RemoveAllListeners();
-            agentColorModeDropdown.onValueChanged.AddListener((index) => {
+            agentColorModeDropdown.onValueChanged.AddListener((index) =>
+            {
                 if (multiAgentManager != null && multiAgentManager.isMultiAgentMode)
                 {
                     multiAgentManager.SetColorMode((MultiAgentManager.AgentColorMode)index);
@@ -3142,12 +3228,13 @@ public class SpirographUIManager : MonoBehaviour
                 }
             });
         }
-        
+
         // Connect Spawn Mode Dropdown
         if (agentSpawnModeDropdown != null)
         {
             agentSpawnModeDropdown.onValueChanged.RemoveAllListeners();
-            agentSpawnModeDropdown.onValueChanged.AddListener((index) => {
+            agentSpawnModeDropdown.onValueChanged.AddListener((index) =>
+            {
                 if (multiAgentManager != null && multiAgentManager.isMultiAgentMode)
                 {
                     multiAgentManager.SetSpawnMode((MultiAgentManager.AgentSpawnMode)index);
@@ -3155,29 +3242,29 @@ public class SpirographUIManager : MonoBehaviour
                 }
             });
         }
-        
+
         // When multi-agent mode is enabled, connect sliders to SharedPathState
         // This will be handled in OnMultiAgentModeToggled
-        
+
         Debug.Log("✓ Multi-agent system UI connected!");
     }
-    
+
     /// <summary>
     /// Handle multi-agent mode toggle
     /// </summary>
     void OnMultiAgentModeToggled(bool isEnabled)
     {
         Debug.Log($"Multi-Agent Mode: {(isEnabled ? "ENABLED" : "DISABLED")}");
-        
+
         // Show/hide multi-agent controls
         GameObject agentCountContainer = GameObject.Find("AgentCountContainer");
         GameObject colorModeContainer = GameObject.Find("ColorModeContainer");
         GameObject spawnModeContainer = GameObject.Find("SpawnModeContainer");
-        
+
         if (agentCountContainer != null) agentCountContainer.SetActive(isEnabled);
         if (colorModeContainer != null) colorModeContainer.SetActive(isEnabled);
         if (spawnModeContainer != null) spawnModeContainer.SetActive(isEnabled);
-        
+
         if (isEnabled)
         {
             // Enable multi-agent mode
@@ -3188,7 +3275,7 @@ public class SpirographUIManager : MonoBehaviour
                 if (spawner != null && spawner.activeRoller != null && spawner.activeRoller.pathPoints != null)
                 {
                     sharedPathState.pathPoints = spawner.activeRoller.pathPoints;
-                    
+
                     // Copy current settings from active rotor to shared state
                     sharedPathState.masterSpeed = spawner.activeRoller.speed;
                     sharedPathState.masterRotationSpeed = spawner.activeRoller.rotationSpeed;
@@ -3197,32 +3284,33 @@ public class SpirographUIManager : MonoBehaviour
                     sharedPathState.masterLineWidth = spawner.activeRoller.lineWidth;
                     sharedPathState.masterLineBrightness = spawner.activeRoller.lineBrightness;
                     sharedPathState.masterLineColor = spawner.activeRoller.currentLineColor;
-                    
+
                     Debug.Log("✓ Copied active rotor settings to SharedPathState");
                 }
-                
+
                 // Set agent count from slider
                 if (agentCountSlider != null)
                 {
                     multiAgentManager.agentCount = (int)agentCountSlider.value;
                 }
-                
+
                 // Set color mode from dropdown
                 if (agentColorModeDropdown != null)
                 {
                     multiAgentManager.colorMode = (MultiAgentManager.AgentColorMode)agentColorModeDropdown.value;
                 }
-                
+
                 // Set spawn mode from dropdown
                 if (agentSpawnModeDropdown != null)
                 {
                     multiAgentManager.spawnMode = (MultiAgentManager.AgentSpawnMode)agentSpawnModeDropdown.value;
                 }
-                
+
                 multiAgentManager.EnableMultiAgentMode();
-                
+
                 // Subscribe to spawn completion to populate roster
-                multiAgentManager.OnAgentsSpawned += () => {
+                multiAgentManager.OnAgentsSpawned += () =>
+                {
                     if (agentPanelUI != null)
                     {
                         agentPanelUI.PopulateAgentList();
@@ -3230,13 +3318,13 @@ public class SpirographUIManager : MonoBehaviour
                     }
                 };
             }
-            
+
             // Show agent panel
             if (agentPanelUI != null)
             {
                 agentPanelUI.ShowPanel();
             }
-            
+
             // Redirect sliders to control SharedPathState instead of activeRoller
             ConnectSlidersToSharedState();
         }
@@ -3247,24 +3335,24 @@ public class SpirographUIManager : MonoBehaviour
             {
                 ExitPerAgentControl();
             }
-            
+
             // Disable multi-agent mode
             if (multiAgentManager != null)
             {
                 multiAgentManager.DisableMultiAgentMode();
             }
-            
+
             // Hide agent panel
             if (agentPanelUI != null)
             {
                 agentPanelUI.HidePanel();
             }
-            
+
             // Redirect sliders back to activeRoller
             ConnectSlidersToActiveRotor();
         }
     }
-    
+
     /// <summary>
     /// Connect UI sliders to SharedPathState (for multi-agent mode)
     /// </summary>
@@ -3275,13 +3363,14 @@ public class SpirographUIManager : MonoBehaviour
             Debug.LogWarning("[UIManager] Cannot connect sliders to SharedPathState - it is null");
             return;
         }
-        
+
         // Speed Slider
         if (speedSlider != null)
         {
             speedSlider.onValueChanged.RemoveAllListeners();
             speedSlider.value = sharedPathState.masterSpeed;
-            speedSlider.onValueChanged.AddListener((value) => {
+            speedSlider.onValueChanged.AddListener((value) =>
+            {
                 sharedPathState.masterSpeed = value;
                 if (speedText != null)
                 {
@@ -3294,43 +3383,47 @@ public class SpirographUIManager : MonoBehaviour
                 speedText.text = "Travel Speed: " + sharedPathState.masterSpeed.ToString("F1") + " (ALL)";
             }
         }
-        
+
         // Rotation Speed Slider
         if (rotationSpeedSlider != null)
         {
             rotationSpeedSlider.onValueChanged.RemoveAllListeners();
             rotationSpeedSlider.value = sharedPathState.masterRotationSpeed;
-            rotationSpeedSlider.onValueChanged.AddListener((value) => {
+            rotationSpeedSlider.onValueChanged.AddListener((value) =>
+            {
                 sharedPathState.masterRotationSpeed = value;
             });
         }
-        
+
         // Pen Distance Slider
         if (penDistanceSlider != null)
         {
             penDistanceSlider.onValueChanged.RemoveAllListeners();
             penDistanceSlider.value = sharedPathState.masterPenDistance;
-            penDistanceSlider.onValueChanged.AddListener((value) => {
+            penDistanceSlider.onValueChanged.AddListener((value) =>
+            {
                 sharedPathState.masterPenDistance = value;
             });
         }
-        
+
         // Cycles Slider
         if (cyclesSlider != null)
         {
             cyclesSlider.onValueChanged.RemoveAllListeners();
             cyclesSlider.value = sharedPathState.masterCycles;
-            cyclesSlider.onValueChanged.AddListener((value) => {
+            cyclesSlider.onValueChanged.AddListener((value) =>
+            {
                 sharedPathState.masterCycles = (int)value;
             });
         }
-        
+
         // Line Width Slider
         if (lineWidthSlider != null)
         {
             lineWidthSlider.onValueChanged.RemoveAllListeners();
             lineWidthSlider.value = sharedPathState.masterLineWidth;
-            lineWidthSlider.onValueChanged.AddListener((value) => {
+            lineWidthSlider.onValueChanged.AddListener((value) =>
+            {
                 // Clamp to safe range
                 value = Mathf.Clamp(value, 0.01f, 2f);
                 sharedPathState.masterLineWidth = value;
@@ -3347,24 +3440,25 @@ public class SpirographUIManager : MonoBehaviour
                 }
             });
         }
-        
+
         // Line Brightness Slider
         if (lineBrightnessSlider != null)
         {
             lineBrightnessSlider.onValueChanged.RemoveAllListeners();
             lineBrightnessSlider.value = sharedPathState.masterLineBrightness;
-            lineBrightnessSlider.onValueChanged.AddListener((value) => {
+            lineBrightnessSlider.onValueChanged.AddListener((value) =>
+            {
                 sharedPathState.masterLineBrightness = value;
             });
         }
-        
+
         Debug.Log("✓ Sliders now controlling SharedPathState (Multi-Agent Mode)");
     }
-    
+
     // =============================================================================
     // MODERN 2025/2026 UI SYSTEM - CONTEXT BANNER & TRANSITIONS
     // =============================================================================
-    
+
     /// <summary>
     /// Create the modern context banner at the top of the screen
     /// This prominently shows WHO is being controlled: "MASTER ROTOR" or "AGENT #3"
@@ -3378,32 +3472,32 @@ public class SpirographUIManager : MonoBehaviour
             Debug.LogError("No Canvas found for context banner!");
             return;
         }
-        
+
         // Create banner container
         contextBanner = new GameObject("ContextBanner");
         contextBanner.transform.SetParent(canvas.transform, false);
-        
+
         RectTransform bannerRect = contextBanner.AddComponent<RectTransform>();
         bannerRect.anchorMin = new Vector2(0.5f, 1f); // Top center
         bannerRect.anchorMax = new Vector2(0.5f, 1f);
         bannerRect.pivot = new Vector2(0.5f, 1f);
         bannerRect.anchoredPosition = new Vector2(0, -10); // 10px from top
         bannerRect.sizeDelta = new Vector2(500, 50); // Wide banner
-        
+
         // Add CanvasGroup for smooth fade transitions
         contextBannerGroup = contextBanner.AddComponent<CanvasGroup>();
         contextBannerGroup.alpha = 0f; // Start invisible
-        
+
         // Background (glassmorphic)
         contextBannerBackground = contextBanner.AddComponent<Image>();
         contextBannerBackground.color = new Color(0.05f, 0.1f, 0.2f, 0.85f); // Dark semi-transparent
         contextBannerBackground.raycastTarget = true; // Make clickable
-        
+
         // Add Button component for browsing agents
         Button bannerButton = contextBanner.AddComponent<Button>();
         bannerButton.targetGraphic = contextBannerBackground;
         bannerButton.onClick.AddListener(OnContextBannerClick);
-        
+
         // Button colors
         ColorBlock colors = bannerButton.colors;
         colors.normalColor = Color.white;
@@ -3414,17 +3508,17 @@ public class SpirographUIManager : MonoBehaviour
         colors.colorMultiplier = 1f;
         colors.fadeDuration = 0.1f;
         bannerButton.colors = colors;
-        
+
         // Add outline for depth
         Outline bannerOutline = contextBanner.AddComponent<Outline>();
         bannerOutline.effectColor = new Color(0.3f, 0.6f, 1f, 0.6f);
         bannerOutline.effectDistance = new Vector2(2, -2);
-        
+
         // Add shadow for elevation
         Shadow bannerShadow = contextBanner.AddComponent<Shadow>();
         bannerShadow.effectColor = new Color(0, 0, 0, 0.5f);
         bannerShadow.effectDistance = new Vector2(0, -3);
-        
+
         // Color accent bar on the left
         GameObject accentObj = new GameObject("ColorAccent");
         accentObj.transform.SetParent(contextBanner.transform, false);
@@ -3434,10 +3528,10 @@ public class SpirographUIManager : MonoBehaviour
         accentRect.pivot = new Vector2(0, 0.5f);
         accentRect.anchoredPosition = Vector2.zero;
         accentRect.sizeDelta = new Vector2(6, 0); // 6px wide accent bar
-        
+
         contextBannerAccent = accentObj.AddComponent<Image>();
         contextBannerAccent.color = new Color(0.4f, 0.7f, 1f, 1f); // Default cyan
-        
+
         // Banner text
         GameObject textObj = new GameObject("BannerText");
         textObj.transform.SetParent(contextBanner.transform, false);
@@ -3446,7 +3540,7 @@ public class SpirographUIManager : MonoBehaviour
         textRect.anchorMax = Vector2.one;
         textRect.offsetMin = new Vector2(20, 0); // Padding from accent bar
         textRect.offsetMax = new Vector2(-20, 0);
-        
+
         contextBannerText = textObj.AddComponent<Text>();
         contextBannerText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         contextBannerText.fontSize = 18;
@@ -3454,13 +3548,13 @@ public class SpirographUIManager : MonoBehaviour
         contextBannerText.color = new Color(0.9f, 0.95f, 1f, 1f);
         contextBannerText.alignment = TextAnchor.MiddleCenter;
         contextBannerText.text = "CONTROLLING: MASTER ROTOR";
-        
+
         // Add pulsing effect component
         contextBanner.AddComponent<ContextBannerPulse>();
-        
+
         Debug.Log("✓ Modern context banner created!");
     }
-    
+
     /// <summary>
     /// Handle clicking the context banner to browse agents
     /// Cycles: Master → Agent #0 → Agent #1 → ... → Master
@@ -3473,7 +3567,7 @@ public class SpirographUIManager : MonoBehaviour
             Debug.Log("No agents to browse");
             return;
         }
-        
+
         if (!perAgentControlMode || selectedAgent == null)
         {
             // Currently on master → switch to first agent if available
@@ -3492,7 +3586,7 @@ public class SpirographUIManager : MonoBehaviour
             // Currently on an agent → go to next agent or back to master
             int currentIndex = selectedAgent.agentIndex;
             int nextIndex = currentIndex + 1;
-            
+
             if (nextIndex >= multiAgentManager.agents.Count)
             {
                 // Wrap back to master
@@ -3514,7 +3608,7 @@ public class SpirographUIManager : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// Update context banner to reflect current control mode
     /// </summary>
@@ -3524,15 +3618,15 @@ public class SpirographUIManager : MonoBehaviour
         {
             CreateContextBanner();
         }
-        
+
         if (contextBannerText == null || contextBannerAccent == null) return;
-        
+
         if (perAgentControlMode && selectedAgent != null)
         {
             // Controlling specific agent
             contextBannerText.text = $"CONTROLLING: AGENT #{selectedAgent.agentIndex}";
             contextBannerAccent.color = selectedAgent.agentColor;
-            
+
             // Make banner visible if hidden
             if (contextBannerGroup != null && contextBannerGroup.alpha < 0.5f)
             {
@@ -3544,7 +3638,7 @@ public class SpirographUIManager : MonoBehaviour
             // Controlling master rotor
             contextBannerText.text = "CONTROLLING: MASTER ROTOR";
             contextBannerAccent.color = new Color(0.4f, 0.7f, 1f, 1f); // Default cyan
-            
+
             // Make banner visible if hidden
             if (contextBannerGroup != null && contextBannerGroup.alpha < 0.5f)
             {
@@ -3552,7 +3646,7 @@ public class SpirographUIManager : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// Smooth transition when switching to agent control
     /// </summary>
@@ -3560,16 +3654,16 @@ public class SpirographUIManager : MonoBehaviour
     {
         if (isTransitioningContext) yield break;
         isTransitioningContext = true;
-        
+
         // Fade out banner using UIConstants timing
         if (contextBannerGroup != null)
         {
             yield return StartCoroutine(FadeContextBanner(0f, UIConstants.TransitionFast));
         }
-        
+
         // Wait a moment
         yield return new WaitForSeconds(UIConstants.TransitionVeryFast / 2f);
-        
+
         // Update content
         if (contextBannerText != null)
         {
@@ -3579,16 +3673,16 @@ public class SpirographUIManager : MonoBehaviour
         {
             contextBannerAccent.color = agent.agentColor;
         }
-        
+
         // Fade in banner with new content using UIConstants timing
         if (contextBannerGroup != null)
         {
             yield return StartCoroutine(FadeContextBanner(1f, UIConstants.TransitionNormal));
         }
-        
+
         isTransitioningContext = false;
     }
-    
+
     /// <summary>
     /// Smooth transition when returning to master control
     /// </summary>
@@ -3596,16 +3690,16 @@ public class SpirographUIManager : MonoBehaviour
     {
         if (isTransitioningContext) yield break;
         isTransitioningContext = true;
-        
+
         // Fade out banner using UIConstants timing
         if (contextBannerGroup != null)
         {
             yield return StartCoroutine(FadeContextBanner(0f, UIConstants.TransitionFast));
         }
-        
+
         // Wait a moment
         yield return new WaitForSeconds(UIConstants.TransitionVeryFast / 2f);
-        
+
         // Update content
         if (contextBannerText != null)
         {
@@ -3615,26 +3709,26 @@ public class SpirographUIManager : MonoBehaviour
         {
             contextBannerAccent.color = UIConstants.CyanGlow;
         }
-        
+
         // Fade in banner with new content using UIConstants timing
         if (contextBannerGroup != null)
         {
             yield return StartCoroutine(FadeContextBanner(1f, UIConstants.TransitionNormal));
         }
-        
+
         isTransitioningContext = false;
     }
-    
+
     /// <summary>
     /// Fade context banner to target alpha
     /// </summary>
     System.Collections.IEnumerator FadeContextBanner(float targetAlpha, float duration)
     {
         if (contextBannerGroup == null) yield break;
-        
+
         float startAlpha = contextBannerGroup.alpha;
         float elapsed = 0f;
-        
+
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
@@ -3644,7 +3738,7 @@ public class SpirographUIManager : MonoBehaviour
             contextBannerGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, smoothT);
             yield return null;
         }
-        
+
         contextBannerGroup.alpha = targetAlpha;
     }
 }
@@ -3657,20 +3751,20 @@ public class ContextBannerPulse : MonoBehaviour
     private Outline outline;
     private float time = 0f;
     private Color baseColor = new Color(0.3f, 0.6f, 1f, 0.6f);
-    
+
     void Start()
     {
         outline = GetComponent<Outline>();
     }
-    
+
     void Update()
     {
         if (outline == null) return;
-        
+
         time += Time.deltaTime * 1.5f;
         float pulse = (Mathf.Sin(time) + 1f) * 0.5f; // 0 to 1
         float alpha = Mathf.Lerp(0.4f, 0.8f, pulse);
-        
+
         Color pulseColor = baseColor;
         pulseColor.a = alpha;
         outline.effectColor = pulseColor;
