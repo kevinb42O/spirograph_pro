@@ -505,6 +505,12 @@ public class AgentPanelUI : MonoBehaviour
             return;
         }
         
+        if (agentManager.agents == null)
+        {
+            Debug.LogError("[AgentPanelUI] AgentManager agents list is null!");
+            return;
+        }
+        
         // Get current agent count
         int currentCount = agentManager.agents.Count;
         
@@ -913,7 +919,22 @@ public class AgentPanelUI : MonoBehaviour
         if (agentListContent == null)
         {
             Debug.LogError("[AgentPanelUI] Cannot populate - agentListContent is null! Panel may not be created properly.");
-            return;
+            
+            // Try to repair by finding the AgentList section
+            if (agentPanel != null)
+            {
+                Transform listTransform = agentPanel.transform.Find("AgentList/Viewport/Content");
+                if (listTransform != null)
+                {
+                    agentListContent = listTransform.gameObject;
+                    Debug.Log("[AgentPanelUI] Found and repaired agentListContent reference");
+                }
+            }
+            
+            if (agentListContent == null)
+            {
+                return;
+            }
         }
         
         // Clear existing cards
@@ -944,9 +965,15 @@ public class AgentPanelUI : MonoBehaviour
     /// </summary>
     void ClearAgentList()
     {
+        if (agentCards == null)
+        {
+            agentCards = new List<AgentCard>();
+            return;
+        }
+        
         foreach (AgentCard card in agentCards)
         {
-            if (card.cardObject != null)
+            if (card != null && card.cardObject != null)
             {
                 Destroy(card.cardObject);
             }
@@ -1288,11 +1315,10 @@ public class AgentPanelUI : MonoBehaviour
     {
         if (agentManager == null || !agentManager.isMultiAgentMode) return;
         
-        if (agentCards.Count == 0)
+        if (agentCards == null || agentCards.Count == 0)
         {
             // Try to repopulate if we have agents but no cards
-            List<PathAgent> agents = agentManager.GetAllAgents();
-            if (agents != null && agents.Count > 0 && agentListContent != null)
+            if (agentManager.agents != null && agentManager.agents.Count > 0 && agentListContent != null)
             {
                 Debug.LogWarning("[AgentPanelUI] Cards missing but agents exist - repopulating...");
                 PopulateAgentList();
@@ -1302,7 +1328,7 @@ public class AgentPanelUI : MonoBehaviour
         
         for (int i = 0; i < agentCards.Count; i++)
         {
-            if (agentCards[i].agent != null)
+            if (agentCards[i] != null && agentCards[i].agent != null)
             {
                 UpdateAgentCard(agentCards[i]);
             }
@@ -1314,6 +1340,11 @@ public class AgentPanelUI : MonoBehaviour
     /// </summary>
     void UpdateAgentCard(AgentCard card)
     {
+        if (card == null || card.agent == null)
+        {
+            return;
+        }
+        
         PathAgent agent = card.agent;
         
         // Performance optimization: Only update if card is visible in viewport
@@ -1395,8 +1426,15 @@ public class AgentPanelUI : MonoBehaviour
     {
         if (agentManager == null || globalStatsText == null) return;
         
+        // Prevent NaN in progress calculation
+        float avgProgress = agentManager.averageProgress;
+        if (float.IsNaN(avgProgress) || float.IsInfinity(avgProgress))
+        {
+            avgProgress = 0f;
+        }
+        
         globalStatsText.text = $"Active: {agentManager.activeAgentCount} | Paused: {agentManager.pausedAgentCount} | Completed: {agentManager.completedAgentCount}\n" +
-                               $"Avg Progress: {(agentManager.averageProgress * 100f):F1}%\n" +
+                               $"Avg Progress: {(avgProgress * 100f):F1}%\n" +
                                $"Total Distance: {agentManager.totalDistanceCovered:F1}m";
     }
     
@@ -1478,10 +1516,23 @@ public class AgentPanelUI : MonoBehaviour
     /// </summary>
     void OnAgentCardSelected(int agentIndex)
     {
-        if (agentManager == null) return;
+        if (agentManager == null || agentCards == null) return;
+        
+        // Validate index
+        if (agentIndex < 0 || agentIndex >= agentCards.Count)
+        {
+            Debug.LogWarning($"[AgentPanelUI] Invalid agent index for selection: {agentIndex}");
+            return;
+        }
         
         // Check if this agent is currently selected
         PathAgent clickedAgent = agentManager.GetAgent(agentIndex);
+        if (clickedAgent == null)
+        {
+            Debug.LogWarning($"[AgentPanelUI] Agent {agentIndex} is null, cannot select");
+            return;
+        }
+        
         bool isCurrentlySelected = agentCards[agentIndex].selectToggle.isOn;
         bool wasAlreadySelected = (agentManager.selectedAgent == clickedAgent);
         

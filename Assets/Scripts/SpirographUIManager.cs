@@ -251,6 +251,8 @@ public class SpirographUIManager : MonoBehaviour
             speedSlider.onValueChanged.RemoveAllListeners();
             speedSlider.value = agent.agentSpeed; // Set to agent's current value
             speedSlider.onValueChanged.AddListener((value) => {
+                // Clamp to safe range and prevent negative values
+                value = Mathf.Max(0f, Mathf.Clamp(value, speedSlider.minValue, speedSlider.maxValue));
                 agent.agentSpeed = value;
                 agent.useIndividualSettings = true; // Ensure agent uses its own settings
                 if (speedText != null)
@@ -271,6 +273,8 @@ public class SpirographUIManager : MonoBehaviour
             rotationSpeedSlider.onValueChanged.RemoveAllListeners();
             rotationSpeedSlider.value = agent.agentRotationSpeed;
             rotationSpeedSlider.onValueChanged.AddListener((value) => {
+                // Clamp to 0-1 range
+                value = Mathf.Clamp01(value);
                 agent.agentRotationSpeed = value;
                 agent.useIndividualSettings = true;
                 Debug.Log($"Agent {agent.agentIndex} rotation speed: {value:F2}");
@@ -283,9 +287,11 @@ public class SpirographUIManager : MonoBehaviour
             cyclesSlider.onValueChanged.RemoveAllListeners();
             cyclesSlider.value = agent.agentCycles;
             cyclesSlider.onValueChanged.AddListener((value) => {
-                agent.agentCycles = (int)value;
+                // Ensure at least 1 cycle
+                int cycles = Mathf.Max(1, (int)value);
+                agent.agentCycles = cycles;
                 agent.useIndividualSettings = true;
-                Debug.Log($"Agent {agent.agentIndex} cycles: {(int)value}");
+                Debug.Log($"Agent {agent.agentIndex} cycles: {cycles}");
             });
         }
         
@@ -295,6 +301,8 @@ public class SpirographUIManager : MonoBehaviour
             penDistanceSlider.onValueChanged.RemoveAllListeners();
             penDistanceSlider.value = agent.agentPenDistance;
             penDistanceSlider.onValueChanged.AddListener((value) => {
+                // Ensure non-negative
+                value = Mathf.Max(0f, value);
                 agent.agentPenDistance = value;
                 agent.useIndividualSettings = true;
                 Debug.Log($"Agent {agent.agentIndex} pen distance: {value:F2}x");
@@ -307,6 +315,8 @@ public class SpirographUIManager : MonoBehaviour
             lineWidthSlider.onValueChanged.RemoveAllListeners();
             lineWidthSlider.value = agent.agentLineWidth;
             lineWidthSlider.onValueChanged.AddListener((value) => {
+                // Clamp to reasonable range
+                value = Mathf.Clamp(value, 0.01f, 2f);
                 agent.agentLineWidth = value;
                 agent.UpdateLineWidth(value);
                 agent.useIndividualSettings = true;
@@ -320,6 +330,8 @@ public class SpirographUIManager : MonoBehaviour
             lineBrightnessSlider.onValueChanged.RemoveAllListeners();
             lineBrightnessSlider.value = agent.agentLineBrightness;
             lineBrightnessSlider.onValueChanged.AddListener((value) => {
+                // Clamp to 0-1 range
+                value = Mathf.Clamp01(value);
                 agent.agentLineBrightness = value;
                 agent.useIndividualSettings = true;
                 Debug.Log($"Agent {agent.agentIndex} line brightness: {value:F2}");
@@ -542,17 +554,23 @@ public class SpirographUIManager : MonoBehaviour
     /// </summary>
     public void ExitPerAgentControl()
     {
-        if (!perAgentControlMode && selectedAgent == null) return; // Already in master mode
+        // Early exit if already in master mode
+        if (!perAgentControlMode && selectedAgent == null)
+        {
+            return;
+        }
         
         Debug.Log("Exiting per-agent control mode, returning to master control");
         
         // Safely disable individual settings
         if (selectedAgent != null)
         {
-            try {
+            try
+            {
                 selectedAgent.useIndividualSettings = false; // Agent will use master settings again
             }
-            catch (System.Exception e) {
+            catch (System.Exception e)
+            {
                 Debug.LogWarning($"Could not disable individual settings on agent: {e.Message}");
             }
         }
@@ -607,7 +625,11 @@ public class SpirographUIManager : MonoBehaviour
     /// </summary>
     void ConnectSlidersToActiveRotor()
     {
-        if (activeRoller == null) return;
+        if (activeRoller == null)
+        {
+            Debug.LogWarning("[UIManager] Cannot connect sliders - no active rotor available");
+            return;
+        }
         
         // Speed Slider
         if (speedSlider != null)
@@ -3247,7 +3269,11 @@ public class SpirographUIManager : MonoBehaviour
     /// </summary>
     void ConnectSlidersToSharedState()
     {
-        if (sharedPathState == null) return;
+        if (sharedPathState == null)
+        {
+            Debug.LogWarning("[UIManager] Cannot connect sliders to SharedPathState - it is null");
+            return;
+        }
         
         // Speed Slider
         if (speedSlider != null)
@@ -3304,13 +3330,18 @@ public class SpirographUIManager : MonoBehaviour
             lineWidthSlider.onValueChanged.RemoveAllListeners();
             lineWidthSlider.value = sharedPathState.masterLineWidth;
             lineWidthSlider.onValueChanged.AddListener((value) => {
+                // Clamp to safe range
+                value = Mathf.Clamp(value, 0.01f, 2f);
                 sharedPathState.masterLineWidth = value;
-                // Update all agents
-                if (multiAgentManager != null)
+                // Update all agents safely
+                if (multiAgentManager != null && multiAgentManager.agents != null)
                 {
                     foreach (PathAgent agent in multiAgentManager.agents)
                     {
-                        if (agent != null) agent.UpdateLineWidth(value);
+                        if (agent != null)
+                        {
+                            agent.UpdateLineWidth(value);
+                        }
                     }
                 }
             });
@@ -3435,7 +3466,7 @@ public class SpirographUIManager : MonoBehaviour
     /// </summary>
     void OnContextBannerClick()
     {
-        if (multiAgentManager == null || multiAgentManager.agents.Count == 0)
+        if (multiAgentManager == null || multiAgentManager.agents == null || multiAgentManager.agents.Count == 0)
         {
             // No agents - stay on master
             Debug.Log("No agents to browse");
@@ -3444,10 +3475,16 @@ public class SpirographUIManager : MonoBehaviour
         
         if (!perAgentControlMode || selectedAgent == null)
         {
-            // Currently on master → switch to first agent
-            PathAgent firstAgent = multiAgentManager.agents[0];
-            multiAgentManager.SelectAgent(0);
-            Debug.Log("★ Context banner click: Master → Agent #0");
+            // Currently on master → switch to first agent if available
+            if (multiAgentManager.agents.Count > 0 && multiAgentManager.agents[0] != null)
+            {
+                multiAgentManager.SelectAgent(0);
+                Debug.Log("★ Context banner click: Master → Agent #0");
+            }
+            else
+            {
+                Debug.LogWarning("Cannot switch to Agent #0 - no valid agents available");
+            }
         }
         else
         {
@@ -3463,9 +3500,16 @@ public class SpirographUIManager : MonoBehaviour
             }
             else
             {
-                // Go to next agent
-                multiAgentManager.SelectAgent(nextIndex);
-                Debug.Log($"★ Context banner click: Agent #{currentIndex} → Agent #{nextIndex}");
+                // Validate next agent exists before selecting
+                if (multiAgentManager.agents[nextIndex] != null)
+                {
+                    multiAgentManager.SelectAgent(nextIndex);
+                    Debug.Log($"★ Context banner click: Agent #{currentIndex} → Agent #{nextIndex}");
+                }
+                else
+                {
+                    Debug.LogWarning($"Cannot switch to Agent #{nextIndex} - agent is null");
+                }
             }
         }
     }
