@@ -976,6 +976,7 @@ public class AgentPanelUI : MonoBehaviour
     /// </summary>
     public void PopulateAgentList()
     {
+        // CRITICAL: Comprehensive null checks to prevent errors
         if (agentManager == null)
         {
             // Silently return during initialization - this is normal
@@ -987,10 +988,17 @@ public class AgentPanelUI : MonoBehaviour
             // Try to auto-fix before logging error
             if (agentPanel != null)
             {
-                Transform contentTransform = agentPanel.transform.Find("AgentList/Viewport/Content");
-                if (contentTransform != null)
+                try
                 {
-                    agentListContent = contentTransform.gameObject;
+                    Transform contentTransform = agentPanel.transform.Find("AgentList/Viewport/Content");
+                    if (contentTransform != null)
+                    {
+                        agentListContent = contentTransform.gameObject;
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[AgentPanelUI] Error finding content transform: {e.Message}");
                 }
             }
             
@@ -1001,60 +1009,122 @@ public class AgentPanelUI : MonoBehaviour
             }
         }
 
-
-
-        // Clear existing cards
-        ClearAgentList();
-
-        // Create card for each agent
-        List<PathAgent> agents = agentManager.GetAllAgents();
-
-        if (agents == null || agents.Count == 0)
+        try
         {
-            Debug.LogWarning("[AgentPanelUI] No agents to display");
-            return;
-        }
+            // Clear existing cards
+            ClearAgentList();
 
-        for (int i = 0; i < agents.Count; i++)
-        {
-            if (agents[i] != null)
+            // Create card for each agent
+            List<PathAgent> agents = agentManager.GetAllAgents();
+
+            if (agents == null || agents.Count == 0)
             {
-                CreateAgentCard(agents[i], i);
+                Debug.LogWarning("[AgentPanelUI] No agents to display");
+                return;
             }
-        }
 
-        Debug.Log($"✓ Created {agentCards.Count} agent cards");
+            for (int i = 0; i < agents.Count; i++)
+            {
+                // CRITICAL: Validate agent exists and GameObject is not destroyed
+                if (agents[i] != null && agents[i].gameObject != null)
+                {
+                    try
+                    {
+                        CreateAgentCard(agents[i], i);
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogError($"[AgentPanelUI] Error creating card for agent {i}: {e.Message}");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"[AgentPanelUI] Skipping null or destroyed agent at index {i}");
+                }
+            }
+
+            Debug.Log($"✓ Created {agentCards.Count} agent cards");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[AgentPanelUI] Error populating agent list: {e.Message}\n{e.StackTrace}");
+        }
     }
 
     /// <summary>
     /// Clear all agent cards
+    /// CRITICAL: Safe cleanup with null checks to prevent errors
     /// </summary>
     void ClearAgentList()
     {
-        foreach (AgentCard card in agentCards)
+        try
         {
-            if (card.cardObject != null)
+            if (agentCards == null)
             {
-                Destroy(card.cardObject);
+                agentCards = new List<AgentCard>();
+                return;
             }
+            
+            foreach (AgentCard card in agentCards)
+            {
+                if (card != null && card.cardObject != null)
+                {
+                    try
+                    {
+                        Destroy(card.cardObject);
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogWarning($"[AgentPanelUI] Error destroying card object: {e.Message}");
+                    }
+                }
+            }
+            agentCards.Clear();
         }
-        agentCards.Clear();
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[AgentPanelUI] Error clearing agent list: {e.Message}");
+            // Ensure list is valid even after error
+            agentCards = new List<AgentCard>();
+        }
     }
 
     /// <summary>
     /// Create a card for a single agent
+    /// CRITICAL: Comprehensive validation to prevent null reference errors
     /// </summary>
     void CreateAgentCard(PathAgent agent, int index)
     {
-        // Card container
-        GameObject cardObj = new GameObject($"AgentCard_{index}");
-        cardObj.transform.SetParent(agentListContent.transform, false);
-        RectTransform cardRect = cardObj.AddComponent<RectTransform>();
-        cardRect.sizeDelta = new Vector2(0, 90);
+        // CRITICAL: Validate inputs
+        if (agent == null)
+        {
+            Debug.LogWarning($"[AgentPanelUI] Cannot create card - agent is null");
+            return;
+        }
+        
+        if (agent.gameObject == null)
+        {
+            Debug.LogWarning($"[AgentPanelUI] Cannot create card - agent GameObject is destroyed");
+            return;
+        }
+        
+        if (agentListContent == null)
+        {
+            Debug.LogWarning($"[AgentPanelUI] Cannot create card - agentListContent is null");
+            return;
+        }
+        
+        try
+        {
+            // Card container
+            GameObject cardObj = new GameObject($"AgentCard_{index}");
+            cardObj.transform.SetParent(agentListContent.transform, false);
+            RectTransform cardRect = cardObj.AddComponent<RectTransform>();
+            cardRect.sizeDelta = new Vector2(0, 90);
 
-        LayoutElement cardLayout = cardObj.AddComponent<LayoutElement>();
-        cardLayout.preferredHeight = 90;
-        cardLayout.flexibleHeight = 0;
+            LayoutElement cardLayout = cardObj.AddComponent<LayoutElement>();
+            cardLayout.preferredHeight = 90;
+            cardLayout.flexibleHeight = 0;
 
         // Card background - STUNNING GLASSMORPHIC CARD
         Image cardBg = cardObj.AddComponent<Image>();
@@ -1367,10 +1437,16 @@ public class AgentPanelUI : MonoBehaviour
         });
 
         agentCards.Add(card);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[AgentPanelUI] Error creating agent card for agent {index}: {e.Message}\n{e.StackTrace}");
+        }
     }
 
     /// <summary>
     /// Update all agent cards (called at 10 Hz)
+    /// CRITICAL: Safe updates with comprehensive null checks
     /// </summary>
     void UpdateAllAgentCards()
     {
@@ -1707,6 +1783,51 @@ public class AgentPanelUI : MonoBehaviour
         }
 
         outline.effectColor = originalColor;
+    }
+    
+    /// <summary>
+    /// OnDisable - Cleanup event subscriptions
+    /// </summary>
+    void OnDisable()
+    {
+        try
+        {
+            // Unsubscribe from agent manager events
+            if (agentManager != null)
+            {
+                agentManager.OnAgentSelected -= OnAgentSelected;
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[AgentPanelUI] Error during OnDisable: {e.Message}");
+        }
+    }
+    
+    /// <summary>
+    /// OnDestroy - Final cleanup
+    /// </summary>
+    void OnDestroy()
+    {
+        try
+        {
+            // Clean up agent cards
+            ClearAgentList();
+            
+            // Clear references
+            agentManager = null;
+            agentPanel = null;
+            agentListContent = null;
+            agentListScrollRect = null;
+            globalStatsText = null;
+            agentCardPrefab = null;
+            addAgentButton = null;
+            agentCreationPanel = null;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[AgentPanelUI] Error during OnDestroy: {e.Message}");
+        }
     }
 }
 

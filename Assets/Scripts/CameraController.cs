@@ -288,6 +288,7 @@ public class CameraController : MonoBehaviour
 
     void UpdateAutoOrbitMode()
     {
+        // CRITICAL: Validate target exists
         // Determine which target to orbit around
         Transform activeOrbitTarget = orbitTarget != null ? orbitTarget : target;
 
@@ -295,6 +296,17 @@ public class CameraController : MonoBehaviour
         {
             Debug.LogWarning("[CameraController] No orbit target available, disabling auto-orbit");
             isOrbiting = false;
+            return;
+        }
+        
+        // CRITICAL: Validate GameObject still exists
+        if (activeOrbitTarget.gameObject == null)
+        {
+            Debug.LogWarning("[CameraController] Orbit target GameObject destroyed, disabling auto-orbit");
+            isOrbiting = false;
+            activeOrbitTarget = null;
+            orbitTarget = null;
+            target = null;
             return;
         }
 

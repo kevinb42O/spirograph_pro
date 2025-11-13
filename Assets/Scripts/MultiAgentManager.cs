@@ -746,18 +746,30 @@ public class MultiAgentManager : MonoBehaviour
             selectedAgent = null;
             
             // Notify UI Manager to exit per-agent control mode
-            SpirographUIManager uiManager = FindFirstObjectByType<SpirographUIManager>();
-            if (uiManager != null && uiManager.perAgentControlMode)
+            try
             {
-                Debug.Log("★ Selected agent was deleted - returning to master control");
-                try
+                SpirographUIManager uiManager = FindFirstObjectByType<SpirographUIManager>();
+                if (uiManager != null)
                 {
-                    uiManager.ExitPerAgentControl();
+                    // Check if UI Manager references this agent
+                    if (uiManager.selectedAgent == agent)
+                    {
+                        Debug.Log("★ Selected agent was deleted - returning to master control");
+                        // Clear the UI Manager's reference first to prevent accessing destroyed object
+                        uiManager.selectedAgent = null;
+                        
+                        // Only exit per-agent control if currently in that mode
+                        if (uiManager.perAgentControlMode)
+                        {
+                            uiManager.ExitPerAgentControl();
+                        }
+                    }
                 }
-                catch (System.Exception e)
-                {
-                    Debug.LogWarning($"[MultiAgentManager] Error exiting per-agent control: {e.Message}");
-                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[MultiAgentManager] Error notifying UI Manager of agent deletion: {e.Message}");
+                // Don't rethrow - continue with agent removal
             }
         }
         
@@ -785,5 +797,45 @@ public class MultiAgentManager : MonoBehaviour
         }
         
         Debug.Log($"[MultiAgentManager] Agent {index} removed. {agents.Count} agent(s) remaining.");
+    }
+    
+    /// <summary>
+    /// OnDisable - Cleanup event subscriptions
+    /// </summary>
+    void OnDisable()
+    {
+        // Clear event handlers to prevent memory leaks
+        OnAgentSelected = null;
+        OnAgentCompleted = null;
+        OnAgentsSpawned = null;
+    }
+    
+    /// <summary>
+    /// OnDestroy - Final cleanup
+    /// </summary>
+    void OnDestroy()
+    {
+        try
+        {
+            // Clean up all agents
+            if (agents != null && agents.Count > 0)
+            {
+                ClearAllAgents();
+            }
+            
+            // Clear references
+            sharedState = null;
+            agentPrefab = null;
+            selectedAgent = null;
+            
+            // Clear event handlers
+            OnAgentSelected = null;
+            OnAgentCompleted = null;
+            OnAgentsSpawned = null;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[MultiAgentManager] Error during cleanup: {e.Message}");
+        }
     }
 }

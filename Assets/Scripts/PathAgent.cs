@@ -397,10 +397,18 @@ public class PathAgent : MonoBehaviour
     
     Vector3 GetPointOnPath(float distance)
     {
+        // CRITICAL: Comprehensive null and bounds checking to prevent all array access errors
         if (staticPathCache == null || staticPathCache.Count == 0)
         {
             Debug.LogWarning($"[PathAgent] Agent {agentIndex}: No path cache available");
             return Vector3.zero;
+        }
+        
+        // Validate distance value (prevent NaN/Infinity)
+        if (float.IsNaN(distance) || float.IsInfinity(distance))
+        {
+            Debug.LogWarning($"[PathAgent] Agent {agentIndex}: Invalid distance value: {distance}");
+            distance = 0f;
         }
         
         // Clamp distance to valid range
@@ -408,11 +416,16 @@ public class PathAgent : MonoBehaviour
         {
             distance = Mathf.Clamp(distance, 0f, totalPathLength);
         }
+        else
+        {
+            // Path length is invalid, return first point
+            return staticPathCache[0];
+        }
         
         // Performance: Use cached segment lengths instead of recalculating distances
         // Binary search for the right segment (O(log n) instead of O(n))
         int segmentIndex = 0;
-        if (cumulativeLengths.Count > 0)
+        if (cumulativeLengths != null && cumulativeLengths.Count > 0)
         {
             // Find segment using binary search
             int left = 0;
@@ -421,6 +434,14 @@ public class PathAgent : MonoBehaviour
             while (left < right)
             {
                 int mid = (left + right) / 2;
+                
+                // CRITICAL: Validate array access before reading
+                if (mid < 0 || mid >= cumulativeLengths.Count)
+                {
+                    Debug.LogError($"[PathAgent] Agent {agentIndex}: Binary search index out of bounds: {mid}");
+                    break;
+                }
+                
                 if (cumulativeLengths[mid] < distance)
                 {
                     left = mid + 1;
@@ -433,20 +454,39 @@ public class PathAgent : MonoBehaviour
             segmentIndex = left;
         }
         
-        // Calculate position within segment
-        float prevCumulativeLength = segmentIndex > 0 ? cumulativeLengths[segmentIndex - 1] : 0f;
-        float segmentLength = segmentIndex < segmentLengths.Count ? segmentLengths[segmentIndex] : 0f;
+        // CRITICAL: Validate segmentIndex before array access
+        if (segmentIndex < 0)
+        {
+            Debug.LogError($"[PathAgent] Agent {agentIndex}: Negative segment index: {segmentIndex}");
+            segmentIndex = 0;
+        }
+        
+        // Calculate position within segment with bounds checking
+        float prevCumulativeLength = 0f;
+        if (segmentIndex > 0 && segmentIndex <= cumulativeLengths.Count)
+        {
+            prevCumulativeLength = cumulativeLengths[segmentIndex - 1];
+        }
+        
+        float segmentLength = 0f;
+        if (segmentIndex >= 0 && segmentIndex < segmentLengths.Count)
+        {
+            segmentLength = segmentLengths[segmentIndex];
+        }
         
         if (segmentLength > 0f)
         {
             float t = (distance - prevCumulativeLength) / segmentLength;
+            // Clamp t to [0,1] to prevent overshoot
+            t = Mathf.Clamp01(t);
             
+            // CRITICAL: Validate array indices before access
             // Get start and end points for this segment
-            if (segmentIndex < staticPathCache.Count - 1)
+            if (segmentIndex >= 0 && segmentIndex < staticPathCache.Count - 1 && segmentIndex + 1 < staticPathCache.Count)
             {
                 return Vector3.Lerp(staticPathCache[segmentIndex], staticPathCache[segmentIndex + 1], t);
             }
-            else if (segmentIndex == staticPathCache.Count - 1)
+            else if (segmentIndex == staticPathCache.Count - 1 && staticPathCache.Count > 0)
             {
                 // Wrap-around segment
                 return Vector3.Lerp(staticPathCache[staticPathCache.Count - 1], staticPathCache[0], t);
@@ -769,6 +809,78 @@ public class PathAgent : MonoBehaviour
                     trailRenderer.endWidth = baseWidth;
                 }
             }
+        }
+    }
+    
+    /// <summary>
+    /// OnDisable - Cleanup to prevent memory leaks
+    /// </summary>
+    void OnDisable()
+    {
+        // Nothing to unsubscribe currently, but good practice to have this
+    }
+    
+    /// <summary>
+    /// OnDestroy - Final cleanup to prevent memory leaks and orphaned objects
+    /// CRITICAL: Clean up all created GameObjects and references
+    /// </summary>
+    void OnDestroy()
+    {
+        try
+        {
+            // Clean up created GameObjects
+            if (penObject != null)
+            {
+                Destroy(penObject);
+                penObject = null;
+            }
+            
+            if (penDotVisual != null)
+            {
+                Destroy(penDotVisual);
+                penDotVisual = null;
+            }
+            
+            if (radiusLine != null && radiusLine.gameObject != null)
+            {
+                Destroy(radiusLine.gameObject);
+                radiusLine = null;
+            }
+            
+            if (trailRenderer != null && trailRenderer.gameObject != null)
+            {
+                Destroy(trailRenderer.gameObject);
+                trailRenderer = null;
+            }
+            
+            // Clear material references to prevent memory leaks
+            if (trailMaterial != null)
+            {
+                Destroy(trailMaterial);
+                trailMaterial = null;
+            }
+            
+            if (penDotMaterial != null)
+            {
+                Destroy(penDotMaterial);
+                penDotMaterial = null;
+            }
+            
+            if (radiusLineMaterial != null)
+            {
+                Destroy(radiusLineMaterial);
+                radiusLineMaterial = null;
+            }
+            
+            // Clear references
+            sharedState = null;
+            staticPathCache?.Clear();
+            segmentLengths?.Clear();
+            cumulativeLengths?.Clear();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[PathAgent] Error during cleanup: {e.Message}");
         }
     }
 }
